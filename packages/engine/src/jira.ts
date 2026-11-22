@@ -7,8 +7,8 @@ export type RawIssue = { id: string; key: string; fields: Record<string, any> };
 // `toString` is a real changelog key; read it as an own property, never the inherited Object.prototype.toString
 export type RawItem = { field: string; fieldId?: string; from?: string | null; to?: string | null; fromString?: string | null; toString?: unknown };
 const toStr = (it: RawItem): string | null => (Object.hasOwn(it, 'toString') && typeof it.toString === 'string' ? it.toString : null);
-export type RawHistory = { id: string; created: string; author?: RawUser; items: RawItem[] };
-export type RawComment = { id: string; created: string; author?: RawUser; jsdPublic?: boolean };
+export type RawHistory = { id: string; created: string | number; author?: RawUser; items: RawItem[] };
+export type RawComment = { id: string; created: string | number; author?: RawUser; jsdPublic?: boolean };
 
 export const AUTOMATION_FOR_JIRA = '557058:f58131cb-b67d-43c7-b30d-6b58d40bd077';
 
@@ -26,6 +26,8 @@ const NAME_MAP: Record<string, string> = {
 };
 const DELTA = new Set(['components', 'fixVersions']);
 
+/** Jira returns ISO strings from most endpoints but epoch ms from changelog/bulkfetch. */
+const time = (v: string | number) => (typeof v === 'number' ? v : Date.parse(v));
 const userId = (u: RawUser) => u?.accountId ?? u?.key ?? u?.name ?? null;
 const idsOf = (xs: any[] | null | undefined) => fromSet((xs ?? []).map((x) => String(x.id)));
 const bracketIds = (s: string | null | undefined) => (s ?? '').match(/[^[\],\s]+/g) ?? [];
@@ -71,9 +73,9 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
   type Raw = { ts: number; ev: Omit<Event, 'seq'>; item?: RawItem };
   const raws: Raw[] = [];
   const descriptionEdits: number[] = [];
-  const sortedHist = [...histories].sort((a, b) => Date.parse(a.created) - Date.parse(b.created) || Number(a.id) - Number(b.id));
+  const sortedHist = [...histories].sort((a, b) => time(a.created) - time(b.created) || Number(a.id) - Number(b.id));
   for (const h of sortedHist) {
-    const ts = Date.parse(h.created);
+    const ts = time(h.created);
     for (const item of h.items) {
       if (item.field.toLowerCase() === 'description') descriptionEdits.push(ts);
       const field = (item.fieldId && byFieldId[item.fieldId]) || NAME_MAP[item.field.toLowerCase()];
@@ -82,7 +84,7 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
     }
   }
   for (const c of comments) {
-    const ts = Date.parse(c.created);
+    const ts = time(c.created);
     raws.push({ ts, ev: { issueId: issue.id, ts, kind: 'comment', field: c.jsdPublic === false ? 'internal' : 'public', ...actor(c.author, true) } });
   }
   raws.sort((a, b) => a.ts - b.ts); // stable: changelog order kept on ties, comments after field items

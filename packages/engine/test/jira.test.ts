@@ -163,3 +163,9 @@ test('description edits are recorded so later text never leaks into trigger-time
   const h: RawHistory[] = [{ id: '6', created: '2026-11-22T14:00:00.000+0000', author: agent, items: [{ field: 'description', fieldId: 'description', fromString: 'a', toString: 'b' }] }];
   expect(fromJira(cloudIssue, h, [], opts).descriptionEdits).toEqual([Date.parse('2026-11-22T14:00:00Z')]);
 });
+
+test('bulk changelog timestamps arrive as epoch ms numbers and are accepted', () => {
+  const ms = Date.parse('2026-11-22T10:30:00Z');
+  const h = [{ id: '7', created: ms, author: agent, items: [{ field: 'priority', fieldId: 'priority', from: '3', to: '1' }] }] as unknown as RawHistory[];
+  expect(fromJira(cloudIssue, h, [], opts).events.at(-1)!.ts).toBe(ms);
+});

@@ -17,12 +17,14 @@ export async function migrate() {
   migrated = true;
 }
 
+const lastTs = (r: IssueRecord) => [r.events.at(-1)?.ts, r.createdAt, Date.now()].find((x) => Number.isFinite(x)) as number;
+
 export async function putIssues(projectKey: string, recs: IssueRecord[]) {
   await migrate();
   for (const r of recs) {
     await sql
       .prepare('INSERT INTO issues (project_key, issue_id, issue_key, updated_ms, record) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE issue_key = VALUES(issue_key), updated_ms = VALUES(updated_ms), record = VALUES(record)')
-      .bindParams(projectKey, r.id, r.key, r.events.at(-1)?.ts ?? r.createdAt, JSON.stringify(r))
+      .bindParams(projectKey, r.id, r.key, lastTs(r), JSON.stringify(r))
       .execute();
   }
 }

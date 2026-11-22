@@ -64,10 +64,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
   return (
     <Stack space="space.300">
       <Inline spread="space-between" alignBlock="center" shouldWrap>
-        <Stack space="space.050">
-          <Heading size="large">Autopilot</Heading>
-          <Muted>Chores your team does by hand, and rules proven against what the team actually did.</Muted>
-        </Stack>
+        <Muted>Chores your team does by hand, and rules proven against what the team actually did.</Muted>
         <Button appearance="primary" onClick={start} isDisabled={running(progress)}>
           {meta ? 'Re-analyse history' : `Analyse the last ${settings.windowDays} days`}
         </Button>
