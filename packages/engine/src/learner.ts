@@ -60,7 +60,7 @@ export function candidateClauses(examples: Example[], vocab: Set<string>): Expr[
 function score(mask: Uint8Array, labels: Uint8Array) {
   let tp = 0, fp = 0, fn = 0;
   for (let i = 0; i < mask.length; i++) {
-    if (mask[i]) labels[i] ? tp++ : fp++;
+    if (mask[i]) { if (labels[i]) tp++; else fp++; }
     else if (labels[i]) fn++;
   }
   const precision = tp + fp ? tp / (tp + fp) : 0;
