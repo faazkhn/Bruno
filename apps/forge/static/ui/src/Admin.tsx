@@ -1,0 +1,112 @@
+import Button from '@atlaskit/button/new';
+import Heading from '@atlaskit/heading';
+import { Inline, Stack, Text } from '@atlaskit/primitives';
+import SectionMessage from '@atlaskit/section-message';
+import TextArea from '@atlaskit/textarea';
+import Textfield from '@atlaskit/textfield';
+import { useEffect, useState } from 'react';
+import { call, type Settings } from './api';
+import { Card, day, Muted, pct } from './ui';
+
+interface Replay {
+  understood: { rule: string; conditions: string[] }; inconclusive: boolean; unsupported?: string[]; reason?: string; error?: string;
+  range?: { from: number; to: number }; wouldAct?: number; matchesPeople?: number; ruleOnly?: number; peopleOnly?: number; precision?: number; recall?: number; coverage?: number; sentence?: string;
+  examples?: { key: string; outcome: string }[];
+}
+
+/** Admin page: per-project settings and "replay an existing rule". */
+export function Admin() {
+  const [projects, setProjects] = useState<string[]>([]);
+  const [projectKey, setProjectKey] = useState('');
+  const [s, setS] = useState<Settings | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [json, setJson] = useState('');
+  const [replay, setReplay] = useState<Replay | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => { void call<string[]>('projects').then((p) => { setProjects(p); if (p[0]) setProjectKey(p[0]); }); }, []);
+  useEffect(() => {
+    if (!projectKey) return;
+    setErr(null);
+    void call<Settings>('settings', { projectKey }).then(setS).catch((e) => { setS(null); setErr(String(e.message)); });
+  }, [projectKey]);
+
+  const save = async () => {
+    if (!s) return;
+    const v = await call<Settings>('settings', { projectKey, save: { windowDays: s.windowDays, minCount: s.minCount, minPeople: s.minPeople, anchor: s.anchor, adminProjectKey: s.adminProjectKey ?? '' } });
+    setS(v);
+    setSaved('Saved. Re-analyse the project to apply.');
+  };
+  const run = async () => {
+    setReplay(null);
+    try { setReplay(await call<Replay>('replay', { projectKey, ruleJson: json })); } catch (e) { setErr(String((e as Error).message)); }
+  };
+  const num = (k: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => s && setS({ ...s, [k]: Number(e.target.value) });
+
+  return (
+    <Stack space="space.300">
+      <Heading size="large">Wind Tunnel</Heading>
+      <Inline space="space.100" alignBlock="end">
+        <Stack space="space.050">
+          <label htmlFor="pk"><Text weight="medium">Project key</Text></label>
+          <Textfield id="pk" value={projectKey} onChange={(e) => setProjectKey((e.target as HTMLInputElement).value.toUpperCase())} width="small" />
+        </Stack>
+        {projects.length > 0 && <Muted>Analysed so far: {projects.join(', ')}</Muted>}
+      </Inline>
+      {err && <SectionMessage appearance="error">{err}</SectionMessage>}
+
+      {s && (
+        <Card>
+          <Stack space="space.150">
+            <Heading size="small">Settings for {projectKey}</Heading>
+            <Inline space="space.200" shouldWrap>
+              <Field id="wd" label="History window (days)" help="Learn on the first two thirds, prove on the last third."><Textfield id="wd" type="number" min={14} max={365} value={s.windowDays} onChange={num('windowDays')} /></Field>
+              <Field id="mc" label="Minimum repeats" help="Actions on fewer items are never chores."><Textfield id="mc" type="number" min={5} value={s.minCount} onChange={num('minCount')} /></Field>
+              <Field id="mp" label="Minimum people" help="Use 1 only on a single-person demo project."><Textfield id="mp" type="number" min={1} value={s.minPeople} onChange={num('minPeople')} /></Field>
+              <Field id="ap" label="Hand-off project (optional)" help="Where admin work items go; defaults to the project itself."><Textfield id="ap" value={s.adminProjectKey ?? ''} onChange={(e) => setS({ ...s, adminProjectKey: (e.target as HTMLInputElement).value.toUpperCase() })} /></Field>
+            </Inline>
+            <Inline space="space.100" alignBlock="center">
+              <input id="anchor" type="checkbox" checked={s.anchor === 'lastActivity'} onChange={(e) => setS({ ...s, anchor: e.target.checked ? 'lastActivity' : 'now' })} />
+              <label htmlFor="anchor"><Text>End the window at the project’s last activity (for older or imported projects)</Text></label>
+            </Inline>
+            <Inline space="space.100" alignBlock="center"><Button appearance="primary" onClick={save}>Save settings</Button>{saved && <Muted>{saved}</Muted>}</Inline>
+          </Stack>
+        </Card>
+      )}
+
+      <Card>
+        <Stack space="space.150">
+          <Heading size="small">Replay an existing rule</Heading>
+          <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Wind Tunnel shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
+          <label htmlFor="rule"><Text weight="medium">Rule JSON</Text></label>
+          <TextArea id="rule" value={json} onChange={(e) => setJson(e.target.value)} minimumRows={6} resize="vertical" />
+          <Inline><Button onClick={run} isDisabled={!json.trim() || !projectKey}>Replay</Button></Inline>
+          {replay && <ReplayResult r={replay} />}
+        </Stack>
+      </Card>
+    </Stack>
+  );
+}
+
+function Field({ id, label, help, children }: { id: string; label: string; help: string; children: React.ReactNode }) {
+  return (
+    <Stack space="space.050">
+      <label htmlFor={id}><Text weight="medium">{label}</Text></label>
+      {children}
+      <Muted>{help}</Muted>
+    </Stack>
+  );
+}
+
+function ReplayResult({ r }: { r: Replay }) {
+  if (r.error) return <SectionMessage appearance="error">{r.error}</SectionMessage>;
+  if (r.inconclusive) return <SectionMessage appearance="warning" title="Inconclusive">{r.reason} Unsupported: {r.unsupported?.join('; ')}</SectionMessage>;
+  return (
+    <Stack space="space.100">
+      <Text><strong>{r.sentence}</strong></Text>
+      <Text>{day(r.range!.from)} – {day(r.range!.to)}: the rule would have acted {r.wouldAct} times; people did the same {r.matchesPeople} of those times. It would act {r.ruleOnly} times where people didn’t, and people acted {r.peopleOnly} times where it wouldn’t.</Text>
+      <Muted>Precision {pct(r.precision!)} · recall {pct(r.recall!)} · coverage {pct(r.coverage!)}</Muted>
+      {r.examples && r.examples.length > 0 && <Muted>Examples: {r.examples.map((e) => `${e.key} (${e.outcome})`).join(', ')}</Muted>}
+    </Stack>
+  );
+}

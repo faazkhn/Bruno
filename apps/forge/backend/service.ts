@@ -17,6 +17,7 @@ export type Job = { type: 'ingest'; projectKey: string; nextPageToken?: string }
 
 export interface Detail extends StoredChore {
   sentence?: string;
+  clauseText?: string[];
   exceptions?: ReturnType<typeof findExceptions> & { described?: string[]; suggestionText?: string };
   firstSeen?: number;
 }
@@ -102,6 +103,7 @@ function detail(c: Chore, issues: IssueRecord[], window: { start: number; cut: n
   return {
     ...trimChore(c),
     sentence: sentence(c, nm),
+    clauseText: c.clauses.map((cl) => describeClause(cl, nm)),
     exceptions: { ...ex, described: ex.groups.map((g) => describeClause(g.clause, nm)), suggestionText: ex.suggestion ? describeClause(ex.suggestion.clause, nm) : undefined },
     firstSeen: firstSeen ?? Date.now(),
   };
@@ -299,6 +301,23 @@ export async function weeklyReport(projectKey: string, now = Date.now()) {
     });
   const fresh = rows.filter((r) => ((r.chore as Detail).firstSeen ?? 0) >= since && r.status === 'new').map((r) => ({ ref: choreRef(projectKey, r.chore.id), sentence: (r.chore as Detail).sentence ?? r.chore.id }));
   return { projectKey, from: since, to: now, live, newChores: fresh };
+}
+
+/** Events on one item around a moment, with display names and actor kind only (no identities). */
+export async function caseTimeline(projectKey: string, issueId: string, around: number) {
+  const rec = await db.getIssue(projectKey, issueId);
+  if (!rec) return null;
+  const nm = await db.getNames(projectKey);
+  const name = (field: string | undefined, v: string | null | undefined) =>
+    v == null ? null : field && nm[field] ? v.split(',').map((x) => nm[field]![x] ?? x).join(', ') : v;
+  const span = 3 * DAY;
+  return {
+    key: rec.key,
+    summary: rec.text.summary,
+    events: rec.events
+      .filter((e) => Math.abs(e.ts - around) <= span)
+      .map((e) => ({ ts: e.ts, kind: e.kind, actor: e.actorKind, field: e.field ?? null, from: name(e.field, e.from), to: name(e.field, e.to) })),
+  };
 }
 
 export async function nightly() {

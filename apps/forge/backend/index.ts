@@ -27,6 +27,7 @@ resolverDef.define('exclude', guarded((p, _c, k) => svc.applySuggestedExclusion(
 resolverDef.define('setStatus', guarded((p, _c, k) => svc.setStatus(k, p.choreId, p.status === 'dismissed' ? 'dismissed' : 'new')));
 resolverDef.define('sendToAdmin', guarded((p, _c, k) => svc.sendToAdmin(k, p.choreId, p.confirm === true)));
 resolverDef.define('replay', guarded((p, _c, k) => svc.replayRule(k, String(p.ruleJson ?? ''), p.windowDays ? Number(p.windowDays) : undefined)));
+resolverDef.define('timeline', guarded((p, _c, k) => svc.caseTimeline(k, String(p.issueId), Number(p.around))));
 resolverDef.define('weekly', guarded((_p, _c, k) => svc.weeklyReport(k)));
 resolverDef.define('settings', guarded(async (p, _c, k) => {
   if (p.save) {
