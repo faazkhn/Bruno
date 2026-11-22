@@ -54,7 +54,7 @@ A planted chore counts as recovered when the miner finds the same action, the sa
 |---|---|---|---|---|---|---|---|---|---|
 ${rows.join('\n')}
 
-Precision is measured over every moment the rule could act on the holdout (not only items people changed), and it is agreement with what the team did, not proof the team was right. \"Proven\" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for medium (priority, assignee, status); closing/resolving work is never recommended. Exceptions are learned on the learning period only, so the re-proof stays an unbiased test. The bot plants ~15% deviations, so even a perfect rule can't reach 100%. Recall counts every human action in the holdout, including ones with no trigger before them.
+Precision is measured over every moment the rule could act on the holdout (not only items people changed), and it is agreement with what the team did, not proof the team was right. "Proven" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for medium (priority, assignee, status); closing/resolving work is never recommended. Exceptions are learned on the learning period only, so the re-proof stays an unbiased test. The bot plants ~15% deviations, so even a perfect rule can't reach 100%. Recall counts every human action in the holdout, including ones with no trigger before them.
 
 Other chores the miner reported that are not in the planted list (e.g. the senior agent's VIP habit is a real pattern in this history), ${extra.length}:
 

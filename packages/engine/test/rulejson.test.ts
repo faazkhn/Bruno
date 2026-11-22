@@ -61,3 +61,9 @@ test('negation guard keeps engine and Jira semantics equal on empty fields', () 
   const back = fromNativeRule(toNativeRule(billing, 'x', ctx), ctx);
   expect(back.clauses.map((c) => evalJql(c, snap, { description: '' }))).toEqual([true, true]);
 });
+
+test('JSON that is not a rule export is listed as unsupported, never a crash', () => {
+  for (const bad of [{ hello: 1 }, { rules: [] }, { rules: 'x' }, null]) {
+    expect(fromNativeRule(bad as never, ctx)).toMatchObject({ trigger: null, action: null, unsupported: ['no rule in export'] });
+  }
+});

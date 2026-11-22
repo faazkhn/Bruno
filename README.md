@@ -42,7 +42,8 @@ Reproduce A and B: `pnpm --filter benchmark test-a` and `pnpm --filter benchmark
 4. **Send to admin** → a work item with the rule JSON appears. Import it via Settings → System → Global automation → Import rules (it arrives disabled).
 
 **Project without history?** Two options:
-- *Older or imported projects:* Apps → **Wind Tunnel** (admin page) → enter the project key → tick *End the window at the project's last activity* → save → Analyse.
+- *Older or imported projects:* ⚙ Settings → Marketplace apps → **Wind Tunnel** (admin page) → enter the project key → tick *End the window at the project's last activity* → save → Analyse.
+- *New project, no history:* Autopilot → **Load simulated demo history** (90 simulated days, clearly labelled).
 - *Replay an existing rule:* admin page → paste a rule exported from Automation → see what it would have done versus what people did.
 - *Grow history:* the history bot (below) runs against your site and plants known chores every 15 minutes.
 

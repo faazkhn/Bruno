@@ -22,6 +22,8 @@ export function Admin() {
   const [saved, setSaved] = useState<string | null>(null);
   const [json, setJson] = useState('');
   const [replay, setReplay] = useState<Replay | null>(null);
+  const [replayErr, setReplayErr] = useState<string | null>(null);
+  const [replaying, setReplaying] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => { void call<string[]>('projects').then((p) => { setProjects(p); if (p[0]) setProjectKey(p[0]); }); }, []);
@@ -39,7 +41,10 @@ export function Admin() {
   };
   const run = async () => {
     setReplay(null);
-    try { setReplay(await call<Replay>('replay', { projectKey, ruleJson: json })); } catch (e) { setErr(String((e as Error).message)); }
+    setReplayErr(null);
+    setReplaying(true);
+    // errors belong next to the button that caused them, not at the top of the page
+    try { setReplay(await call<Replay>('replay', { projectKey, ruleJson: json })); } catch (e) { setReplayErr(String((e as Error).message)); } finally { setReplaying(false); }
   };
   const num = (k: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => s && setS({ ...s, [k]: Number(e.target.value) });
 
@@ -80,8 +85,11 @@ export function Admin() {
           <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Wind Tunnel shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
           <label htmlFor="rule"><Text weight="medium">Rule JSON</Text></label>
           <TextArea id="rule" value={json} onChange={(e) => setJson(e.target.value)} minimumRows={6} resize="vertical" />
-          <Inline><Button onClick={run} isDisabled={!json.trim() || !projectKey}>Replay</Button></Inline>
-          {replay && <ReplayResult r={replay} />}
+          <Inline><Button onClick={run} isDisabled={!json.trim() || !projectKey} isLoading={replaying}>Replay</Button></Inline>
+          <div aria-live="polite">
+            {replayErr && <SectionMessage appearance="error" title="Replay failed">{replayErr}</SectionMessage>}
+            {replay && <ReplayResult r={replay} />}
+          </div>
         </Stack>
       </Card>
     </Stack>
@@ -100,7 +108,7 @@ function Field({ id, label, help, children }: { id: string; label: string; help:
 
 function ReplayResult({ r }: { r: Replay }) {
   if (r.error) return <SectionMessage appearance="error">{r.error}</SectionMessage>;
-  if (r.inconclusive) return <SectionMessage appearance="warning" title="Inconclusive">{r.reason} Unsupported: {r.unsupported?.join('; ')}</SectionMessage>;
+  if (r.inconclusive) return <SectionMessage appearance="warning" title="Inconclusive">{r.reason} {r.unsupported?.length ? `Can’t model: ${r.unsupported.join('; ')}.` : ''}</SectionMessage>;
   return (
     <Stack space="space.100">
       <Text><strong>{r.sentence}</strong></Text>

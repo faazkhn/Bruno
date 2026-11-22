@@ -158,7 +158,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
                     { key: 'count', content: c.count },
                     { key: 'people', content: c.people },
                     { key: 'matches', content: <NumberLink onClick={() => onOpen(c.id, 'TP')} label={`Show the ${c.matches} matching cases`}>{c.matches} of {c.fires}</NumberLink> },
-                    { key: 'verdict', content: <span title={`Precision ${pct(c.precision)} · recall ${pct(c.recall)} · coverage ${pct(c.coverage)}`}><VerdictChip verdict={c.verdict} /></span> },
+                    { key: 'verdict', content: <Inline space="space.050" alignBlock="center"><VerdictChip verdict={c.verdict} /><Text size="small" color="color.text.subtle">{pct(c.precision)}</Text></Inline> },
                     { key: 'status', content: <StatusChip status={c.status} /> },
                   ],
                 }))}

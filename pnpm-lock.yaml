@@ -102,6 +102,9 @@ importers:
       '@atlaskit/tokens':
         specifier: latest
         version: 20.14.0(react@18.3.1)
+      '@atlaskit/tooltip':
+        specifier: latest
+        version: 24.4.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@forge/bridge':
         specifier: latest
         version: 7.3.0(@types/react@18.3.31)(react@18.3.1)(typescript@5.9.3)

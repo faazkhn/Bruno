@@ -146,7 +146,8 @@ function detail(c: Chore, issues: IssueRecord[], window: { start: number; cut: n
     ...trimChore(c),
     sentence: sentence(c, nm),
     clauseText: c.clauses.map((cl) => describeClause(cl, nm)),
-    exceptions: { ...ex, described: ex.groups.map((g) => describeClause(g.clause, nm)), suggestionText: ex.suggestion ? describeClause(ex.suggestion.clause, nm) : undefined },
+    exceptions: { ...ex, described: ex.groups.map((g) => describeClause(g.clause, nm)), // the suggestion is NOT(group): describe the group, the UI/Rovo say "exclude when <group>"
+    suggestionText: ex.suggestion ? describeClause(ex.suggestion.clause.op === 'not' ? ex.suggestion.clause.arg : ex.suggestion.clause, nm) : undefined },
     firstSeen: firstSeen ?? Date.now(),
   };
 }

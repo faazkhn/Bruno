@@ -18,6 +18,7 @@
     "@atlaskit/textarea": "latest",
     "@atlaskit/textfield": "latest",
     "@atlaskit/tokens": "latest",
+    "@atlaskit/tooltip": "latest",
     "@atlaskit/css-reset": "latest",
     "@forge/bridge": "latest",
     "react": "^18.3.1",

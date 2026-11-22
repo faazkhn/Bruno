@@ -158,7 +158,7 @@ function unguard(e: Expr): Expr {
 
 /** Parse an exported rule (first rule) back into a replayable rule; anything we can't model is listed. */
 export function fromNativeRule(exp: NativeExport, ctx: SiteContext): { trigger: Trigger | null; clauses: Expr[]; action: Action | null; unsupported: string[] } {
-  const rule = exp.rules[0];
+  const rule = Array.isArray(exp?.rules) ? exp.rules[0] : undefined;
   const unsupported: string[] = [];
   if (!rule) return { trigger: null, clauses: [], action: null, unsupported: ['no rule in export'] };
   const fieldOf = (id: string) => (id === ctx.fieldIds.requestType ? 'requestType' : id === ctx.fieldIds.organizations ? 'organizations' : id);

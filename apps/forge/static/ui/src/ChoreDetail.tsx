@@ -1,5 +1,4 @@
 import Button from '@atlaskit/button/new';
-import Drawer from '@atlaskit/drawer';
 import DynamicTable from '@atlaskit/dynamic-table';
 import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
@@ -10,7 +9,7 @@ import Spinner from '@atlaskit/spinner';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
 import { token } from '@atlaskit/tokens';
 import { router } from '@forge/bridge';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { call, type Case, type ChoreDetail as Detail } from './api';
 import { AgreementBar, Card, day, Muted, NumberLink, pct, StatusChip, VerdictChip, when } from './ui';
 
@@ -27,7 +26,8 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState(Math.max(0, TABS.findIndex((t) => t.id === initialTab)));
   const [open, setOpen] = useState<Case | null>(null);
-  const [filterKeys, setFilterKeys] = useState<string[] | null>(null);
+  const [openGroup, setOpenGroup] = useState<number | null>(null);
+  const caseRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState<{ appearance: 'success' | 'warning' | 'error'; text: string } | null>(null);
@@ -40,14 +40,16 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
   const c = d.chore;
   const p = c.proof;
   const nm = (field: string, v: string | null) => (v == null ? '—' : v.split(',').map((x) => d.names[field]?.[x] ?? x).join(', '));
-  const show = (i: number, keys: string[] | null = null) => { setTab(i); setFilterKeys(keys); };
+  const show = (i: number) => setTab(i);
+  // the case view renders inline: fixed drawers get clipped inside Jira's auto-sized iframe
+  const openCase = (x: Case) => { setOpen(x); setTimeout(() => caseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };
   const blocked = c.verdict !== 'proven' ? 'Hand-off needs a proven rule.' : p.coverage < d.settings.minCoverage ? `Hand-off needs coverage ≥ ${pct(d.settings.minCoverage)}.` : null;
 
   const act = async (name: string, fn: () => Promise<void>) => {
     setBusy(name);
     try { await fn(); } catch (e) { setNotice({ appearance: 'error', text: String((e as Error).message) }); } finally { setBusy(null); }
   };
-  const exclude = () => act('exclude', async () => { setD(await call<Detail>('exclude', { choreId })); setNotice({ appearance: 'success', text: 'New version re-proved on the same holdout period.' }); });
+  const exclude = () => act('exclude', async () => { setD(await call<Detail>('exclude', { choreId })); setNotice({ appearance: 'success', text: 'New version re-proved on the untouched holdout period.' }); });
   const dismiss = () => act('dismiss', async () => { await call('setStatus', { choreId, status: d.status === 'dismissed' ? 'new' : 'dismissed' }); await load(); });
   const handOff = () => act('handoff', async () => {
     const r = await call<{ created: boolean; key?: string; reason?: string }>('sendToAdmin', { choreId, confirm: true });
@@ -56,7 +58,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
     await load();
   });
 
-  const cases = p.cases.filter((x) => x.outcome === TABS[tab]!.id && (!filterKeys || filterKeys.includes(x.key)));
+  const cases = p.cases.filter((x) => x.outcome === TABS[tab]!.id);
   const counts: Record<string, number> = { TP: p.tp, FP: p.fp, FN: p.fn, inconclusive: p.inconclusive };
 
   return (
@@ -103,14 +105,21 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
             <Heading size="small">Exceptions (learning period)</Heading>
             <Muted>Found on {c.exceptions.period ? `${day(c.exceptions.period.from)} – ${day(c.exceptions.period.to)}` : 'the learning period'} only, so the holdout test above stays unbiased.</Muted>
             {c.exceptions.groups.map((g, i) => (
-              <Text key={i}>
-                <NumberLink onClick={() => show(g.outcome === 'FP' ? 1 : 2, g.caseKeys)} label={`Show these ${g.differences} cases`}>{g.differences} of {g.ofDifferences}</NumberLink>{' '}
-                {g.outcome === 'FP' ? 'times the rule would act where people didn’t' : 'times people acted where the rule wouldn’t'}: {c.exceptions!.described?.[i]} ({g.lift.toFixed(1)}× more often than elsewhere)
-              </Text>
+              <Stack key={i} space="space.050">
+                <Text>
+                  <NumberLink onClick={() => setOpenGroup(openGroup === i ? null : i)} label={`List these ${g.differences} learning-period items`}>{g.differences} of {g.ofDifferences}</NumberLink>{' '}
+                  {g.outcome === 'FP' ? 'times the rule would act where people didn’t' : 'times people acted where the rule wouldn’t'}: {c.exceptions!.described?.[i]} ({g.lift.toFixed(1)}× more often than elsewhere)
+                </Text>
+                {openGroup === i && (
+                  <Muted>
+                    Learning-period items{g.caseKeys.length > 40 ? ` (first 40 of ${g.caseKeys.length})` : ''}: {g.caseKeys.slice(0, 40).join(', ')}
+                  </Muted>
+                )}
+              </Stack>
             ))}
             {c.exceptions.suggestion && (
               <SectionMessage
-                appearance="discovery"
+                appearance="information"
                 title={`Suggested: exclude when ${c.exceptions.suggestionText}`}
                 actions={[<SectionMessageAction key="apply" onClick={exclude}>{busy === 'exclude' ? 'Re-proving…' : 'Apply and re-prove'}</SectionMessageAction>]}
               >
@@ -127,14 +136,13 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
           {TABS.map((t) => (
             <TabPanel key={t.id}>
               <Stack space="space.100">
-                {filterKeys && <Inline space="space.100" alignBlock="center"><Muted>Showing one exception group.</Muted><Button spacing="compact" appearance="subtle" onClick={() => setFilterKeys(null)}>Show all</Button></Inline>}
                 <div style={{ overflowX: 'auto', width: '100%' }}>
                   <DynamicTable
                     head={{ cells: [{ key: 'k', content: 'Item' }, { key: 't', content: 'Trigger' }, { key: 'a', content: 'Person acted' }, { key: 'w', content: 'Why' }] }}
                     rows={cases.map((x, i) => ({
                       key: `${x.key}-${i}`,
                       cells: [
-                        { key: 'k', content: <NumberLink onClick={() => setOpen(x)} label={`Open case ${x.key}`}>{x.key}</NumberLink> },
+                        { key: 'k', content: <NumberLink onClick={() => openCase(x)} label={`Open case ${x.key}`}>{x.key}</NumberLink> },
                         { key: 't', content: x.triggerTs ? when(x.triggerTs) : '—' },
                         { key: 'a', content: x.actionTs ? when(x.actionTs) : '—' },
                         { key: 'w', content: x.reason === 'no-trigger' ? 'No trigger before it' : x.clauses.map((cl, k) => ({ cl, k })).filter(({ cl }) => cl.value !== true).map(({ cl, k }) => `${c.clauseText?.[k] ?? cl.jql}: ${cl.value === false ? 'false' : 'unknown'}`).join('; ') || 'All conditions held' },
@@ -150,6 +158,20 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
           ))}
         </Tabs>
       </Stack>
+
+      {open && (
+        <div ref={caseRef}>
+          <Card>
+            <Stack space="space.200">
+              <Inline spread="space-between" alignBlock="center">
+                <Heading size="small">Case</Heading>
+                <Button appearance="subtle" onClick={() => setOpen(null)}>Close</Button>
+              </Inline>
+              <CaseView c={open} detail={d} nm={nm} />
+            </Stack>
+          </Card>
+        </div>
+      )}
 
       <Inline space="space.100" shouldWrap>
         <span title={blocked ?? 'Creates a work item for your Jira admin with the rule and import steps'}>
@@ -178,9 +200,6 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
         )}
       </ModalTransition>
 
-      <Drawer isOpen={!!open} onClose={() => setOpen(null)} width="wide" label="Case details">
-        {open && <CaseView c={open} detail={d} nm={nm} />}
-      </Drawer>
     </Stack>
   );
 }

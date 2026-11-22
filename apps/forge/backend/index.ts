@@ -68,6 +68,8 @@ export async function worker(event: any) {
 
 // ---- Rovo actions (every action echoes what it understood, PRD §14) ----
 const fail = (understood: object, message: string) => ({ understood, error: message });
+/** Rovo quotes numbers exactly: give it the same rounding the page shows. */
+const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
 export async function listChoresAction(payload: any) {
   const projectKey = String(payload?.projectKey ?? '').trim().toUpperCase();
@@ -81,7 +83,7 @@ export async function listChoresAction(payload: any) {
     return {
       understood,
       window: o.meta?.window ?? null,
-      chores: o.chores.slice(0, limit).map((c) => ({ choreId: c.ref, sentence: c.sentence, count: c.count, people: c.people, matches: c.matches, wouldAct: c.fires, precision: c.precision, status: c.status, verdict: c.verdict })),
+      chores: o.chores.slice(0, limit).map((c) => ({ choreId: c.ref, sentence: c.sentence, timesByHand: c.count, people: c.people, agreed: c.matches, wouldAct: c.fires, precision: pct(c.precision), verdict: c.verdict, status: c.status, handoffKey: c.handoff ?? null })),
     };
   } catch (e) {
     return fail(understood, String(e));
@@ -101,10 +103,11 @@ export async function proveChoreAction(payload: any) {
     return {
       understood: { ...understood, sentence: c.sentence, version: c.version },
       holdout: { from: day(c.proof.range.from), to: day(c.proof.range.to), note: 'not used for learning' },
-      matches: c.proof.tp, wouldAct: c.proof.tp + c.proof.fp, peopleDid: c.proof.tp + c.proof.fn,
-      precision: c.proof.precision, recall: c.proof.recall, coverage: c.proof.coverage, verdict: c.verdict, note: c.note ?? null,
+      agreed: c.proof.tp, wouldAct: c.proof.tp + c.proof.fp, peopleDid: c.proof.tp + c.proof.fn,
+      precision: pct(c.proof.precision), recall: pct(c.proof.recall), coverage: pct(c.proof.coverage), verdict: c.verdict, note: c.note ?? null,
+      status: d.status, handoffKey: d.handoff?.handoff_key ?? null,
       topDifferences: c.proof.cases.filter((x) => x.outcome === 'FP' || x.outcome === 'FN').slice(0, 5).map((x) => ({ key: x.key, kind: x.outcome === 'FP' ? 'rule would act where people didn’t' : 'people acted where the rule wouldn’t', reason: x.reason ?? null })),
-      suggestedExclusion: c.exceptions?.suggestion ? { text: `Exclude: ${c.exceptions.suggestionText}`, explains: `${Math.round(c.exceptions.suggestion.share * 100)}% of the differences` } : null,
+      suggestedExclusion: c.exceptions?.suggestion ? { text: `Exclude when ${c.exceptions.suggestionText}`, explains: `${pct(c.exceptions.suggestion.share)} of the learning-period times the rule would act where people didn't` } : null,
     };
   } catch (e) {
     return fail(understood, String(e));

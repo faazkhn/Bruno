@@ -1,4 +1,5 @@
 import Lozenge from '@atlaskit/lozenge';
+import Tooltip from '@atlaskit/tooltip';
 import { Box, Inline, Stack, Text, xcss } from '@atlaskit/primitives';
 import { token } from '@atlaskit/tokens';
 import type { ReactNode } from 'react';
@@ -25,7 +26,9 @@ const VERDICT: Record<Verdict, { text: string; appearance: 'success' | 'moved' |
   'low-coverage': { text: 'Inconclusive', appearance: 'removed', hint: 'Too many cases could not be modelled (coverage under 80%) — never treated as safe.' },
 };
 export const VerdictChip = ({ verdict }: { verdict: Verdict }) => (
-  <span title={VERDICT[verdict].hint}><Lozenge appearance={VERDICT[verdict].appearance}>{VERDICT[verdict].text}</Lozenge></span>
+  <Tooltip content={VERDICT[verdict].hint}>
+    <span tabIndex={0}><Lozenge appearance={VERDICT[verdict].appearance}>{VERDICT[verdict].text}</Lozenge></span>
+  </Tooltip>
 );
 
 /** Plain text button that looks like a link: every number clicks through to the items behind it. */
