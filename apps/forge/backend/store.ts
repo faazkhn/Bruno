@@ -53,7 +53,8 @@ export async function getIssues(projectKey: string): Promise<IssueRecord[]> {
   await migrate();
   const out: IssueRecord[] = [];
   for (let offset = 0; ; offset += 500) {
-    const r = await sql.prepare<{ record: string }>('SELECT record FROM issues WHERE project_key = ? ORDER BY issue_id LIMIT 500 OFFSET ?').bindParams(projectKey, offset).execute();
+    // Forge SQL rejects placeholders in LIMIT/OFFSET; offset is our own integer
+    const r = await sql.prepare<{ record: string }>(`SELECT record FROM issues WHERE project_key = ? ORDER BY issue_id LIMIT 500 OFFSET ${Number(offset)}`).bindParams(projectKey).execute();
     out.push(...r.rows.map((x) => JSON.parse(x.record) as IssueRecord));
     if (r.rows.length < 500) return out;
   }
