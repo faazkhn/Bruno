@@ -50,3 +50,10 @@ test('an action outside W after the trigger is a no-trigger difference', () => {
   const p = replay(rule, { type: 'created' }, action, [late], range, 24 * H);
   expect(p.cases.map((c) => [c.outcome, c.reason ?? null])).toEqual([['FP', null], ['FN', 'no-trigger']]);
 });
+
+test('a description clause after a later description edit is inconclusive', () => {
+  const edited = { ...item('printer', 170 * H), descriptionEdits: [171 * H] };
+  edited.text = { summary: 'printer', description: 'invoice attached' };
+  const p = replay([parseJql('description ~ invoice')], { type: 'created' }, action, [edited], range, 48 * H);
+  expect(p.inconclusive).toBe(1);
+});

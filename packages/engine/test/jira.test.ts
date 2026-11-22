@@ -158,3 +158,8 @@ test('delta items whose id was renumbered (migrated site) resolve by display nam
   expect(rec.remaps).toBe(1);
   expect(rec.events.at(-1)).toMatchObject({ field: 'fixVersions', from: null, to: '12326677' });
 });
+
+test('description edits are recorded so later text never leaks into trigger-time facts', () => {
+  const h: RawHistory[] = [{ id: '6', created: '2026-11-22T14:00:00.000+0000', author: agent, items: [{ field: 'description', fieldId: 'description', fromString: 'a', toString: 'b' }] }];
+  expect(fromJira(cloudIssue, h, [], opts).descriptionEdits).toEqual([Date.parse('2026-11-22T14:00:00Z')]);
+});

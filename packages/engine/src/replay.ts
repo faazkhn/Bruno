@@ -3,7 +3,7 @@ import { performs, type Action } from './candidates';
 import { evalJql, toJql, type Expr, type Truth } from './jql';
 import type { Event, IssueRecord, Snapshot } from './model';
 import type { Range } from './settings';
-import { snapshotAfter } from './snapshot';
+import { descriptionAt, snapshotAfter } from './snapshot';
 import { followingAction, isNoOp, triggerEvents, type Trigger } from './triggers';
 
 export type Outcome = 'TP' | 'FP' | 'FN' | 'TN' | 'inconclusive';
@@ -44,7 +44,7 @@ export function replay(clauses: Expr[], trigger: Trigger, action: Action, issues
       if (t.ts < range.from || t.ts >= range.to) continue;
       const snapshot = snapshotAfter(issue, t);
       if (isNoOp(snapshot, action)) continue;
-      const ctx = { description: issue.text.description };
+      const ctx = { description: descriptionAt(issue, t.ts) };
       const results = clauses.map((c) => ({ jql: toJql(c), value: evalJql(c, snapshot, ctx) }));
       const fires: Truth = results.some((r) => r.value === false) ? false : results.some((r) => r.value === 'unknown') ? 'unknown' : true;
       const human = followingAction(issue, t, action, windowMs);

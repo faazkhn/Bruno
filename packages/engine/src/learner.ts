@@ -8,7 +8,7 @@ import type { Action } from './candidates';
 import { evalJql, toJql, type Expr } from './jql';
 import { SET_FIELDS, toSet, type Event, type IssueRecord, type Snapshot } from './model';
 import type { Range, Settings } from './settings';
-import { snapshotAfter } from './snapshot';
+import { descriptionAt, snapshotAfter } from './snapshot';
 import { tokenize } from './text';
 import { followingAction, isNoOp, triggerEvents, type Trigger } from './triggers';
 
@@ -52,7 +52,7 @@ export function candidateClauses(examples: Example[], vocab: Set<string>): Expr[
       else add({ op: 'eq', field, value: v });
     }
     for (const t of tokenize(ex.snap.summary ?? '')) if (vocab.has(t)) add({ op: 'contains', field: 'summary', value: t });
-    for (const t of tokenize(ex.issue.text.description)) if (vocab.has(t)) add({ op: 'contains', field: 'description', value: t });
+    for (const t of tokenize(descriptionAt(ex.issue, ex.event.ts) ?? '')) if (vocab.has(t)) add({ op: 'contains', field: 'description', value: t });
   }
   return [...keys.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, e]) => e);
 }
@@ -94,7 +94,7 @@ export function learnRule(examples: Example[], vocab: Set<string>, s: Settings):
   const labels = Uint8Array.from(examples, (e) => (e.positive ? 1 : 0));
   const features = candidateClauses(examples, vocab).map((expr) => ({
     expr,
-    mask: Uint8Array.from(examples, (e) => (evalJql(expr, e.snap, { description: e.issue.text.description }) === true ? 1 : 0)),
+    mask: Uint8Array.from(examples, (e) => (evalJql(expr, e.snap, { description: descriptionAt(e.issue, e.event.ts) }) === true ? 1 : 0)),
   }));
 
   const chosen: { expr: Expr; mask: Uint8Array }[] = [];

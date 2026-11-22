@@ -70,10 +70,12 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
 
   type Raw = { ts: number; ev: Omit<Event, 'seq'>; item?: RawItem };
   const raws: Raw[] = [];
+  const descriptionEdits: number[] = [];
   const sortedHist = [...histories].sort((a, b) => Date.parse(a.created) - Date.parse(b.created) || Number(a.id) - Number(b.id));
   for (const h of sortedHist) {
     const ts = Date.parse(h.created);
     for (const item of h.items) {
+      if (item.field.toLowerCase() === 'description') descriptionEdits.push(ts);
       const field = (item.fieldId && byFieldId[item.fieldId]) || NAME_MAP[item.field.toLowerCase()];
       if (!field) continue;
       raws.push({ ts, item, ev: { issueId: issue.id, ts, kind: 'field', field, ...actor(h.author) } });
@@ -141,5 +143,6 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
     events,
     anomalies,
     remaps,
+    descriptionEdits,
   };
 }

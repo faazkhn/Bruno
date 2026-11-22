@@ -21,6 +21,11 @@ export function snapshotBefore(issue: IssueRecord, e: Event): Snapshot {
   return rebuild(issue, (x) => x.seq >= e.seq);
 }
 
+/** The description as it was at t, if we know it (only today's text is stored). */
+export function descriptionAt(issue: IssueRecord, t: number): string | undefined {
+  return (issue.descriptionEdits ?? []).some((ts) => ts > t) ? undefined : issue.text.description;
+}
+
 /** When the status last changed at or before t (creation if never). */
 export function statusSince(issue: IssueRecord, t: number): number {
   let since = issue.createdAt;

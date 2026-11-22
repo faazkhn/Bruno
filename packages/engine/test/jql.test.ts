@@ -67,3 +67,9 @@ describe('JQL subset', () => {
     }
   });
 });
+
+test('description clauses are unknown when the description at trigger time is not known', () => {
+  expect(evalJql(parseJql('description ~ finance'), snap, {})).toBe('unknown');
+  expect(evalJql(parseJql('text ~ invoice'), snap, {})).toBe('unknown');
+  expect(evalJql(parseJql('summary ~ invoice'), snap, {})).toBe(true);
+});

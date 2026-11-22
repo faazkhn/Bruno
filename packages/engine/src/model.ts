@@ -29,6 +29,8 @@ export interface IssueRecord {
   anomalies: Record<string, number>;
   /** delta items whose id was renumbered (site migration), resolved by display name */
   remaps: number;
+  /** when the description was edited (we keep only today's text, so clauses on it are unknown before an edit) */
+  descriptionEdits?: number[];
 }
 
 export type Snapshot = Record<string, string | null>;

@@ -125,6 +125,7 @@ export function evalJql(e: Expr, snap: Snapshot, ctx: EvalContext = {}): Truth {
       return r === 'unknown' ? r : !r;
     }
     case 'contains': {
+      if (e.field !== 'summary' && ctx.description === undefined) return 'unknown';
       const text = e.field === 'summary' ? (snap.summary ?? '') : e.field === 'description' ? (ctx.description ?? '') : `${snap.summary ?? ''} ${ctx.description ?? ''}`;
       const have = new Set(tokenize(text));
       const want = tokenize(e.value);
