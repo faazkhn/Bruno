@@ -196,7 +196,7 @@ function CaseView({ c, detail, nm }: { c: Case; detail: Detail; nm: (f: string, 
       <Stack space="space.100">
         <Inline space="space.100" alignBlock="center">
           <Heading size="medium">{c.key}</Heading>
-          <Button appearance="subtle" onClick={() => router.open(`/browse/${c.key}`)}>Open in Jira (history tab)</Button>
+          {detail.demo ? <Lozenge>Simulated item</Lozenge> : <Button appearance="subtle" onClick={() => router.open(`/browse/${c.key}`)}>Open in Jira (history tab)</Button>}
         </Inline>
         <Text>{outcome}{c.reason === 'no-trigger' ? ' — the trigger never happened shortly before this.' : ''}</Text>
         <Muted>{c.triggerTs ? `Trigger: ${when(c.triggerTs)}` : 'No trigger'} · {c.actionTs ? `Person acted: ${when(c.actionTs)}` : 'No person acted within the window'}</Muted>

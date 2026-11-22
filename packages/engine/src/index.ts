@@ -14,3 +14,4 @@ export * from './pipeline';
 export * from './exceptions';
 export * from './sentence';
 export * from './rulejson';
+export * from './sim';

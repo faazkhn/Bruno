@@ -49,6 +49,11 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
     return () => clearInterval(t);
   }, [data?.progress, load]);
 
+  const demo = async (on: boolean) => {
+    const p = await call<Progress>('demo', { on });
+    setData((d) => (d ? { ...d, progress: p, demo: on, meta: null, chores: [] } : d));
+    setWeekly(null);
+  };
   const start = async () => {
     const p = await call<Progress>('start');
     setData((d) => (d ? { ...d, progress: p } : d));
@@ -81,6 +86,14 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
           </Stack>
         </Card>
       )}
+      {data.demo && (
+        <SectionMessage appearance="information" title="Simulated demo history">
+          <Stack space="space.100">
+            <Text>This project is showing 90 days generated from Wind Tunnel’s published history-bot config (4 agents, planted chores, a VIP exception, noise and bulk edits). Every number below comes from a real run of the engine on that history, but the items are not real Jira work items.</Text>
+            <Inline><Button spacing="compact" onClick={() => demo(false)}>Switch to this project’s real history</Button></Inline>
+          </Stack>
+        </SectionMessage>
+      )}
       {progress.phase === 'error' && <SectionMessage appearance="error" title="The last analysis failed">{progress.error}</SectionMessage>}
 
       {meta && (
@@ -96,6 +109,10 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
             <Heading size="small">Nothing analysed yet</Heading>
             <Text>Wind Tunnel reads this project’s history, finds actions people repeat by hand, and proves a rule for each one on a later period it didn’t learn from.</Text>
             <Muted>A chore needs at least {settings.minCount} repeated actions on {settings.minCount} items by {settings.minPeople} or more people. Nothing in Jira changes until someone sends a rule to an admin.</Muted>
+            <Inline space="space.100" alignBlock="center" shouldWrap>
+              <Button onClick={() => demo(true)}>Load simulated demo history</Button>
+              <Muted>New project with no history yet? See Wind Tunnel on 90 simulated days, clearly labelled.</Muted>
+            </Inline>
           </Stack>
         </Card>
       )}
@@ -104,6 +121,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
         <Card>
           <Stack space="space.100">
             <Heading size="small">No chores found yet</Heading>
+            {!data.demo && <Inline><Button spacing="compact" onClick={() => demo(true)}>Load simulated demo history</Button></Inline>}
             <Text>A chore needs at least {settings.minCount} repeated actions on {settings.minCount} items by {settings.minPeople} or more people, with a clear trigger before it.</Text>
             {meta.unexplained.length > 0 && <Muted>Repeated but not automatable yet: {meta.unexplained.slice(0, 5).map((u) => `${u.id} (${u.count}×, ${u.reason === 'no-trigger' ? 'no trigger' : 'no pattern'})`).join(', ')}.</Muted>}
           </Stack>

@@ -2,6 +2,7 @@
 import { asApp, asUser, route } from '@forge/api';
 import { Queue } from '@forge/events';
 import {
+  BOT_CONFIG, SIM_IDS, simulateHistory,
   actionOf, analyse, applyExclusion, describeClause, findExceptions, fromJira, fromNativeRule, replay, sentence, snapshotBefore, toNativeRule,
   type Chore, type IssueRecord, type NativeExport, type Names,
 } from '@wind-tunnel/engine';
@@ -13,7 +14,7 @@ const queue = new Queue({ key: 'ingest-queue' });
 const MAX_ISSUES = 5000;
 const DAY = 86_400_000;
 
-export type Job = { type: 'ingest'; projectKey: string; nextPageToken?: string } | { type: 'analyse'; projectKey: string };
+export type Job = { type: 'ingest'; projectKey: string; nextPageToken?: string } | { type: 'analyse'; projectKey: string } | { type: 'demo'; projectKey: string };
 
 export interface Detail extends StoredChore {
   sentence?: string;
@@ -37,13 +38,52 @@ export async function startAnalysis(projectKey: string) {
   const progress: db.Progress = { phase: 'listing', done: 0, startedAt: Date.now() };
   await db.putProgress(projectKey, progress);
   await db.addProject(projectKey);
-  await queue.push({ body: { type: 'ingest', projectKey } });
+  // demo projects re-run analysis on their simulated history only
+  await queue.push({ body: (await db.isDemo(projectKey)) ? { type: 'analyse', projectKey } : { type: 'ingest', projectKey } });
   return progress;
+}
+
+const kvs_clearMeta = (p: string) => db.clearAnalysisMeta(p);
+
+/** Simulated demo history: 90 days generated from the published history-bot config, clearly labelled in the UI. */
+export async function useDemo(projectKey: string, on: boolean) {
+  await db.clearIssues(projectKey);
+  await db.clearChores(projectKey);
+  await kvs_clearMeta(projectKey);
+  await db.setDemo(projectKey, on);
+  const progress: db.Progress = { phase: on ? 'listing' : 'idle', done: 0, startedAt: Date.now() };
+  await db.putProgress(projectKey, progress);
+  if (on) {
+    await db.addProject(projectKey);
+    await queue.push({ body: { type: 'demo', projectKey } });
+  }
+  return progress;
+}
+
+async function loadDemoHistory(projectKey: string) {
+  const issues = simulateHistory(BOT_CONFIG, { days: 90, seed: 2026, end: Date.now() });
+  const flip = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).map(([k, v]) => [v, k]));
+  await db.putNames(projectKey, {
+    requestType: flip(SIM_IDS.requestType), components: flip(SIM_IDS.components), priority: flip(SIM_IDS.priority),
+    status: flip(SIM_IDS.status), organizations: flip(SIM_IDS.organizations), issuetype: { [SIM_IDS.issuetype]: 'Service request' },
+  });
+  const ids = (await db.getFieldIds(projectKey)) as Record<string, string>;
+  if (!ids.projectId) {
+    const project = await call(asApp(), route`/rest/api/3/project/${projectKey}`);
+    await db.putFieldIds(projectKey, { ...(await fieldIds()), projectId: String(project.id), projectTypeKey: project.projectTypeKey });
+  }
+  const start = await db.getProgress(projectKey);
+  for (let i = 0; i < issues.length; i += 1000) {
+    await db.putIssuesBatch(projectKey, issues.slice(i, i + 1000));
+    await db.putProgress(projectKey, { ...start, phase: 'fetching', done: Math.min(issues.length, i + 1000) });
+  }
+  await queue.push({ body: { type: 'analyse', projectKey } });
 }
 
 export async function runJob(job: Job) {
   try {
     if (job.type === 'ingest') await ingestPage(job.projectKey, job.nextPageToken);
+    else if (job.type === 'demo') await loadDemoHistory(job.projectKey);
     else await runAnalysis(job.projectKey);
   } catch (e) {
     const p = await db.getProgress(job.projectKey);
@@ -116,7 +156,7 @@ export async function overview(projectKey: string) {
   const chores = rows
     .map((r) => ({ ...summarise(projectKey, r.chore, (r.chore as Detail).sentence ?? r.chore.id, r.status), handoff: handoffs.find((h) => h.chore_id === r.chore.id)?.handoff_key ?? null }))
     .sort((a, b) => b.perMonth - a.perMonth);
-  return { projectKey, chores, meta: meta ?? null, progress, settings };
+  return { projectKey, chores, meta: meta ?? null, progress, settings, demo: await db.isDemo(projectKey) };
 }
 
 export async function choreDetail(projectKey: string, choreId: string) {
@@ -125,7 +165,7 @@ export async function choreDetail(projectKey: string, choreId: string) {
   const meta = await db.getAnalysisMeta(projectKey);
   const settings = await db.getSettings(projectKey);
   const handoff = (await db.getHandoffs(projectKey)).find((h) => h.chore_id === choreId) ?? null;
-  return { chore: row.chore as Detail, status: row.status, names: await db.getNames(projectKey), window: meta?.window ?? null, settings, handoff, summary: summarise(projectKey, row.chore, (row.chore as Detail).sentence ?? choreId, row.status) };
+  return { demo: await db.isDemo(projectKey), chore: row.chore as Detail, status: row.status, names: await db.getNames(projectKey), window: meta?.window ?? null, settings, handoff, summary: summarise(projectKey, row.chore, (row.chore as Detail).sentence ?? choreId, row.status) };
 }
 
 // ---------- writes ----------
@@ -227,7 +267,7 @@ export async function replayRule(projectKey: string, ruleJson: string, windowDay
 // ---------- pipeline 4: live events, nudges, weekly ----------
 
 export async function onIssueChanged(projectKey: string, issueId: string, actorAccountId?: string) {
-  if (!(await db.projects()).includes(projectKey)) return;
+  if (!(await db.projects()).includes(projectKey) || (await db.isDemo(projectKey))) return;
   const ids = await db.getFieldIds(projectKey);
   const page = await searchPage(`id = ${issueId}`, ids);
   const raw = page.issues[0];

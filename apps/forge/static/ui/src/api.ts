@@ -18,7 +18,7 @@ export interface Progress { phase: 'idle' | 'listing' | 'fetching' | 'mining' | 
 export interface Settings { windowDays: number; minCount: number; minPeople: number; minCoverage: number; anchor: 'now' | 'lastActivity'; adminProjectKey?: string; excludedFields: string[] }
 export interface Window { start: number; cut: number; end: number }
 export interface Overview {
-  projectKey: string; chores: Summary[]; progress: Progress; settings: Settings;
+  projectKey: string; chores: Summary[]; progress: Progress; settings: Settings; demo: boolean;
   meta: { window: Window; runAt: number; issues: number; unexplained: { id: string; count: number; reason: string }[] } | null;
 }
 export type Truth = boolean | 'unknown';
@@ -32,5 +32,5 @@ export interface ChoreDetail {
     learn: { f1: number; precision: number; recall: number; examples: number };
     exceptions?: { groups: Group[]; described?: string[]; suggestion?: { share: number; lift: number; learnF1Before: number; learnF1After: number }; suggestionText?: string };
   };
-  status: Status; names: Record<string, Record<string, string>>; window: Window | null; settings: Settings; handoff: { handoff_key: string } | null; summary: Summary;
+  demo: boolean; status: Status; names: Record<string, Record<string, string>>; window: Window | null; settings: Settings; handoff: { handoff_key: string } | null; summary: Summary;
 }

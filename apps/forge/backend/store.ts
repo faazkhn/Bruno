@@ -29,6 +29,26 @@ export async function putIssues(projectKey: string, recs: IssueRecord[]) {
   }
 }
 
+/** Many rows per INSERT (simulated history is ~10k items). */
+export async function putIssuesBatch(projectKey: string, recs: IssueRecord[], size = 25) {
+  await migrate();
+  for (let i = 0; i < recs.length; i += size) {
+    const chunk = recs.slice(i, i + size);
+    await sql
+      .prepare(`INSERT INTO issues (project_key, issue_id, issue_key, updated_ms, record) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?)').join(', ')} ON DUPLICATE KEY UPDATE record = VALUES(record), updated_ms = VALUES(updated_ms)`)
+      .bindParams(...chunk.flatMap((r) => [projectKey, r.id, r.key, lastTs(r), JSON.stringify(r)]))
+      .execute();
+  }
+}
+
+export async function clearIssues(projectKey: string) {
+  await migrate();
+  await sql.prepare('DELETE FROM issues WHERE project_key = ?').bindParams(projectKey).execute();
+}
+
+export const isDemo = async (p: string) => (await kvs.get<boolean>(`demo:${p}`)) === true;
+export const setDemo = (p: string, v: boolean) => (v ? kvs.set(`demo:${p}`, true) : kvs.delete(`demo:${p}`));
+
 export async function getIssues(projectKey: string): Promise<IssueRecord[]> {
   await migrate();
   const out: IssueRecord[] = [];
@@ -71,6 +91,11 @@ export async function deleteChoresExcept(projectKey: string, keep: string[]) {
   for (const r of rows) {
     if (!keep.includes(r.chore.id) && r.status === 'new') await sql.prepare('DELETE FROM chores WHERE project_key = ? AND chore_id = ?').bindParams(projectKey, r.chore.id).execute();
   }
+}
+
+export async function clearChores(projectKey: string) {
+  await migrate();
+  await sql.prepare('DELETE FROM chores WHERE project_key = ?').bindParams(projectKey).execute();
 }
 
 export async function addHandoff(projectKey: string, choreId: string, version: number, key: string) {
@@ -132,6 +157,7 @@ export const putFieldIds = (p: string, v: object) => kvs.set(`fields:${p}`, v);
 
 export interface AnalysisMeta { window: { start: number; cut: number; end: number }; runAt: number; issues: number; unexplained: { id: string; count: number; reason: string }[] }
 export const getAnalysisMeta = (p: string) => kvs.get<AnalysisMeta>(`analysis:${p}`);
+export const clearAnalysisMeta = (p: string) => kvs.delete(`analysis:${p}`);
 export const putAnalysisMeta = (p: string, v: AnalysisMeta) => kvs.set(`analysis:${p}`, v);
 
 export const putWeekly = (p: string, v: object) => kvs.set(`weekly:${p}`, v);
