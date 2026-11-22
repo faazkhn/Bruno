@@ -88,6 +88,13 @@ function widen(c: Expr, f: Expr): Expr {
 const baseOf = (c: Expr): Expr => (c.op === 'or' ? c.args[0]! : c.op === 'in' ? { op: 'eq', field: c.field, value: c.values[0]! } : c);
 const sizeOf = (c: Expr) => (c.op === 'or' ? c.args.length : c.op === 'in' ? c.values.length : 1);
 
+/** Precision / recall / F1 of a clause set on examples (unknown counts as not firing). */
+export function scoreClauses(examples: Example[], clauses: Expr[]) {
+  const labels = Uint8Array.from(examples, (e) => (e.positive ? 1 : 0));
+  const mask = Uint8Array.from(examples, (e) => (clauses.every((c) => evalJql(c, e.snap, { description: descriptionAt(e.issue, e.event.ts) }) === true) ? 1 : 0));
+  return score(mask, labels);
+}
+
 export function learnRule(examples: Example[], vocab: Set<string>, s: Settings): LearnedRule {
   if (!examples.length) return { clauses: [], f1: 0, precision: 0, recall: 0 };
   const n = examples.length;

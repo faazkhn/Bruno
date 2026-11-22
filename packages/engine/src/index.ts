@@ -11,3 +11,4 @@ export * from './triggers';
 export * from './learner';
 export * from './replay';
 export * from './pipeline';
+export * from './exceptions';

@@ -14,6 +14,9 @@ export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak';
 
 export interface Chore {
   id: string;
+  version: number;
+  /** set on versions whose exclusion was chosen after seeing holdout differences */
+  note?: string;
   action: Action;
   /** whole window, bulk edits excluded */
   count: number;
@@ -36,6 +39,11 @@ export interface Analysis {
   /** candidates with no usable trigger (shown as "not automatable yet") */
   unexplained: { id: string; action: Action; count: number; reason: 'no-trigger' | 'no-pattern' }[];
 }
+
+export const verdictOf = (p: Proof, s: Settings): Verdict =>
+  p.tp + p.fn < s.minHoldoutPositives ? 'too-few' : p.coverage < s.minCoverage ? 'low-coverage' : p.precision < s.minPrecision ? 'weak' : 'proven';
+
+export const splitOf = (w: Analysis['window']) => ({ learn: { from: w.start, to: w.cut }, holdout: { from: w.cut, to: w.end } });
 
 export function analyse(issues: IssueRecord[], s: Settings, now: number): Analysis {
   const lastTs = Math.max(0, ...issues.map((i) => i.events.at(-1)?.ts ?? i.createdAt));
@@ -70,11 +78,11 @@ export function analyse(issues: IssueRecord[], s: Settings, now: number): Analys
       continue;
     }
     const proof = replay(rule.clauses, choice.trigger, cand.action, issues, holdout, W);
-    const verdict: Verdict =
-      proof.tp + proof.fn < s.minHoldoutPositives ? 'too-few' : proof.coverage < s.minCoverage ? 'low-coverage' : proof.precision < s.minPrecision ? 'weak' : 'proven';
+    const verdict = verdictOf(proof, s);
     const { trigger, ...triggerStats } = choice;
     chores.push({
       id: cand.id,
+      version: 1,
       action: cand.action,
       count: whole.get(cand.id) ?? cand.occurrences.length,
       items: cand.items,
