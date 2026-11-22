@@ -86,7 +86,13 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
   raws.sort((a, b) => a.ts - b.ts); // stable: changelog order kept on ties, comments after field items
 
   // from/to values: walk backwards from current so delta fields become full sets
-  let anomalies = 0;
+  const anomalies: Record<string, number> = {};
+  const miss = (f: string) => (anomalies[f] = (anomalies[f] ?? 0) + 1);
+  let remaps = 0;
+  const nameToId: Record<string, Record<string, string>> = {
+    components: Object.fromEntries((f.components ?? []).map((x: any) => [x.name, String(x.id)])),
+    fixVersions: Object.fromEntries((f.fixVersions ?? []).map((x: any) => [x.name, String(x.id)])),
+  };
   const state: Record<string, string | null> = { ...current };
   for (let i = raws.length - 1; i >= 0; i--) {
     const { ev, item } = raws[i]!;
@@ -95,8 +101,12 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
     if (DELTA.has(field)) {
       const after = new Set(toSet(state[field]));
       const before = new Set(after);
-      if (item.to) { if (!before.delete(item.to)) anomalies++; }
-      if (item.from) { if (before.has(item.from)) anomalies++; before.add(item.from); }
+      if (item.to && !before.delete(item.to)) {
+        const renumbered = nameToId[field]?.[toStr(item) ?? ''];
+        if (renumbered && before.delete(renumbered)) remaps++;
+        else miss(field);
+      }
+      if (item.from) { if (before.has(item.from)) miss(field); before.add(item.from); }
       ev.from = fromSet(before);
       ev.to = fromSet(after);
     } else if (field === 'labels') {
@@ -130,5 +140,6 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
     reporterHash: opts.hash(reporter ?? 'unknown'),
     events,
     anomalies,
+    remaps,
   };
 }

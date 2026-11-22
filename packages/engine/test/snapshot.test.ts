@@ -8,7 +8,7 @@ const ev = (seq: number, ts: number, field: string, from: string | null, to: str
 // created at 100: status 1, priority 3; at 200 status 1→3 and priority 3→2 (same history);
 // at 300 status 3→5; at 300 labels null→x (same ts, later seq)
 const issue: IssueRecord = {
-  id: '1', key: 'T-1', projectKey: 'T', createdAt: 100, reporterHash: 'r', anomalies: 0,
+  id: '1', key: 'T-1', projectKey: 'T', createdAt: 100, reporterHash: 'r', anomalies: {}, remaps: 0,
   text: { summary: 's', description: '' },
   current: { status: '5', priority: '2', labels: 'x', assignee: null },
   events: [

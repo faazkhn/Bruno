@@ -32,6 +32,12 @@ importers:
 
   packages/engine: {}
 
+  tools/benchmark:
+    dependencies:
+      '@wind-tunnel/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+
   tools/history-bot:
     dependencies:
       '@wind-tunnel/engine':

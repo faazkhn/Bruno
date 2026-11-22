@@ -138,11 +138,23 @@ describe('fromJira (Server/DC, Apache-style)', () => {
 
   test('delta anomalies are counted, not thrown', () => {
     const bad: RawHistory[] = [{ id: '14', created: '2008-06-07T10:00:00.000+0000', author: { name: 'ann' }, items: [{ field: 'Component', from: null, to: '99' }] }];
-    expect(fromJira(issue, bad, [], { hash }).anomalies).toBe(1);
+    expect(fromJira(issue, bad, [], { hash }).anomalies).toEqual({ components: 1 });
   });
 });
 
 test('a label item without toString yields an empty set, not the inherited function', () => {
   const h: RawHistory[] = [{ id: '5', created: '2026-11-22T13:00:00.000+0000', author: agent, items: [{ field: 'labels', fieldId: 'labels', fromString: 'cleanup follow-up' }] }];
   expect(fromJira(cloudIssue, h, [], opts).events.at(-1)).toMatchObject({ from: 'cleanup,follow-up', to: null });
+});
+
+test('delta items whose id was renumbered (migrated site) resolve by display name, counted as remaps', () => {
+  const issue = {
+    id: '9', key: 'SP-1',
+    fields: { project: { key: 'SP' }, created: '2013-07-05T14:11:50.000+0000', summary: 's', fixVersions: [{ id: '12326677', name: '0.8.0' }], components: [] },
+  };
+  const h: RawHistory[] = [{ id: '1', created: '2013-12-07T00:00:00.000+0000', author: { name: 'x' }, items: [{ field: 'Fix Version', from: null, to: '10500', toString: '0.8.0' }] }];
+  const rec = fromJira(issue, h, [], { hash });
+  expect(rec.anomalies).toEqual({});
+  expect(rec.remaps).toBe(1);
+  expect(rec.events.at(-1)).toMatchObject({ field: 'fixVersions', from: null, to: '12326677' });
 });

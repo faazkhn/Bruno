@@ -1,0 +1,11 @@
+{
+  "name": "benchmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo 'benchmark: run `pnpm --filter benchmark test-a` (network on first run)'",
+    "typecheck": "tsc --noEmit",
+    "test-a": "tsx src/testA.ts"
+  },
+  "dependencies": { "@wind-tunnel/engine": "workspace:*" }
+}

@@ -25,8 +25,10 @@ export interface IssueRecord {
   reporterHash: string;
   /** sorted by seq; events[0] is 'created' */
   events: Event[];
-  /** changelog inconsistencies seen while normalising (test A evidence) */
-  anomalies: number;
+  /** per field: changelog inconsistencies seen while normalising delta fields (test A evidence) */
+  anomalies: Record<string, number>;
+  /** delta items whose id was renumbered (site migration), resolved by display name */
+  remaps: number;
 }
 
 export type Snapshot = Record<string, string | null>;

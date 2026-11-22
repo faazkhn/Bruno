@@ -27,3 +27,8 @@ export function statusSince(issue: IssueRecord, t: number): number {
   for (const e of issue.events) if (e.ts <= t && e.kind === 'field' && e.field === 'status') since = e.ts;
   return since;
 }
+
+/** Fields just after event `e` (everything later undone). */
+export function snapshotAfter(issue: IssueRecord, e: Event): Snapshot {
+  return rebuild(issue, (x) => x.seq > e.seq);
+}
