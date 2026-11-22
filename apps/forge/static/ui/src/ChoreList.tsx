@@ -143,7 +143,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
                 caption="Chores"
                 head={{
                   cells: [
-                    { key: 'sentence', content: 'Chore' },
+                    { key: 'sentence', content: 'Chore', width: 46 },
                     { key: 'count', content: <span title="Times done by hand in the whole window (bulk edits excluded)">Times by hand</span>, isSortable: true },
                     { key: 'people', content: 'People', isSortable: true },
                     { key: 'matches', content: <span title="On the holdout period: times the rule would act that matched what people did">Matches</span> },
@@ -157,8 +157,8 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
                     { key: 'sentence', content: <NumberLink onClick={() => onOpen(c.id)} label={`Open proof: ${c.sentence}`}><span style={{ textDecoration: 'none' }}>{c.sentence}</span></NumberLink> },
                     { key: 'count', content: c.count },
                     { key: 'people', content: c.people },
-                    { key: 'matches', content: <NumberLink onClick={() => onOpen(c.id, 'TP')} label={`Show the ${c.matches} matching cases`}>{c.matches} of {c.fires}</NumberLink> },
-                    { key: 'verdict', content: <Inline space="space.050" alignBlock="center"><VerdictChip verdict={c.verdict} /><Text size="small" color="color.text.subtle">{pct(c.precision)}</Text></Inline> },
+                    { key: 'matches', content: <span style={{ whiteSpace: 'nowrap' }}><NumberLink onClick={() => onOpen(c.id, 'TP')} label={`Show the ${c.matches} matching cases`}>{c.matches} of {c.fires}</NumberLink></span> },
+                    { key: 'verdict', content: <span style={{ whiteSpace: 'nowrap', display: 'inline-flex', gap: 6, alignItems: 'center' }}><VerdictChip verdict={c.verdict} /><Text size="small" color="color.text.subtle">{pct(c.precision)}</Text></span> },
                     { key: 'status', content: <StatusChip status={c.status} /> },
                   ],
                 }))}
