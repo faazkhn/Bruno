@@ -41,7 +41,7 @@ async function main() {
   const existingOrgs = ((await jira.get('/rest/servicedeskapi/organization?limit=100')).values ?? []) as { id: string; name: string }[];
   const orgs: Record<string, string> = {};
   for (const o of BOT_CONFIG.orgs) {
-    const found = existingOrgs.find((e) => e.name === o.name) ?? (await jira.post('/rest/servicedeskapi/organization', { name: o.name }, EXP));
+    const found = existingOrgs.find((e) => e.name === o.name) ?? (await jira.post<{ id: string; name: string }>("/rest/servicedeskapi/organization", { name: o.name }, EXP));
     orgs[o.name] = found.id;
     await jira.post(`/rest/servicedeskapi/servicedesk/${serviceDeskId}/organization`, { organizationId: Number(found.id) }, EXP).catch(() => null);
   }
