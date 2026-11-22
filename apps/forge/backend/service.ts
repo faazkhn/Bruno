@@ -1,5 +1,5 @@
 /** Use cases shared by the UI resolvers, triggers and Rovo actions. Numbers only ever come from stored runs. */
-import api, { route } from '@forge/api';
+import { asApp, asUser, route } from '@forge/api';
 import { Queue } from '@forge/events';
 import {
   actionOf, analyse, applyExclusion, describeClause, findExceptions, fromJira, fromNativeRule, replay, sentence, snapshotBefore, toNativeRule,
@@ -56,7 +56,7 @@ async function ingestPage(projectKey: string, nextPageToken?: string) {
   const s = await db.getSettings(projectKey);
   if (!nextPageToken) {
     const ids = await fieldIds();
-    const project = await call(api.asApp(), route`/rest/api/3/project/${projectKey}`);
+    const project = await call(asApp(), route`/rest/api/3/project/${projectKey}`);
     await db.putFieldIds(projectKey, { ...ids, projectId: String(project.id), projectTypeKey: project.projectTypeKey });
     await db.putNames(projectKey, await names(projectKey));
   }
@@ -171,7 +171,7 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
     'Import: Settings → System → Global automation → … → Import rules → choose the attached JSON. Imported rules arrive disabled; review, then enable. When it runs it sets the issue property windtunnel.run so Wind Tunnel can report live results.',
     'Rule JSON format verification against a real export: pending (see Wind Tunnel docs).',
   ].filter(Boolean);
-  const issue = await call(api.asUser(), route`/rest/api/3/issue`, {
+  const issue = await call(asUser(), route`/rest/api/3/issue`, {
     method: 'POST',
     body: {
       fields: {
@@ -191,7 +191,7 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
 async function attachJson(issueKey: string, filename: string, json: NativeExport) {
   const form = new FormData();
   form.append('file', new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }), filename);
-  const r = await api.asUser().requestJira(route`/rest/api/3/issue/${issueKey}/attachments`, { method: 'POST', headers: { 'X-Atlassian-Token': 'no-check' }, body: form as unknown as string });
+  const r = await asUser().requestJira(route`/rest/api/3/issue/${issueKey}/attachments`, { method: 'POST', headers: { 'X-Atlassian-Token': 'no-check' }, body: form as unknown as string });
   if (!r.ok) throw new Error(`attach ${r.status}`);
 }
 
@@ -239,7 +239,7 @@ export async function onIssueChanged(projectKey: string, issueId: string, actorA
   const rows = await db.getChores(projectKey);
 
   // signature: our generated rules set windtunnel.run when they run (PRD §12)
-  const prop = await call(api.asApp(), route`/rest/api/3/issue/${issueId}/properties/windtunnel.run`).catch(() => null);
+  const prop = await call(asApp(), route`/rest/api/3/issue/${issueId}/properties/windtunnel.run`).catch(() => null);
   const sig = prop?.value && typeof prop.value === 'object' ? prop.value : typeof prop?.value === 'string' ? safeJson(prop.value) : null;
   if (sig?.choreId) {
     const runMs = Date.parse(sig.ts) || Date.now();

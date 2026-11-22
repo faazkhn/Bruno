@@ -1,10 +1,12 @@
 /** Forge entry points (see manifest.yml). Bundled with the engine into src/index.js by build.mjs. */
-import Resolver from '@forge/resolver';
+import ResolverModule from '@forge/resolver';
 import { parseChoreRef } from './logic';
 import * as svc from './service';
 import * as db from './store';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// @forge/resolver is CommonJS (exports.default): unwrap explicitly, an ESM default import gets the module object
+const Resolver = ((ResolverModule as any).default ?? ResolverModule) as typeof ResolverModule;
 const resolverDef = new Resolver();
 const projectOf = (context: any, payload: any): string => payload?.projectKey ?? context?.extension?.project?.key;
 
