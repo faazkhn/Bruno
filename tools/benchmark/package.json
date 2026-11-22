@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo 'benchmark: run `pnpm --filter benchmark test-a` (network on first run)'",
     "typecheck": "tsc --noEmit",
-    "test-a": "tsx src/testA.ts"
+    "test-a": "tsx src/testA.ts",
+    "test-b": "tsx src/testB.ts"
   },
   "dependencies": { "@wind-tunnel/engine": "workspace:*" }
 }

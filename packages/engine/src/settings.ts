@@ -10,6 +10,10 @@ export interface Settings {
   maxClauses: number;
   minHoldoutPositives: number;
   minCoverage: number;
+  /** learn-split precision below this = no pattern, not a chore */
+  minLearnPrecision: number;
+  /** holdout precision below this = 'weak', never 'proven' */
+  minPrecision: number;
   top: number;
   /** 'now' or 'lastActivity' (seeded/old projects: window ends at the last event) */
   anchor: 'now' | 'lastActivity';
@@ -27,6 +31,8 @@ export const DEFAULT_SETTINGS: Settings = {
   maxClauses: 3,
   minHoldoutPositives: 10,
   minCoverage: 0.8,
+  minLearnPrecision: 0.3,
+  minPrecision: 0.5,
   top: 10,
   anchor: 'now',
   excludedFields: [],
