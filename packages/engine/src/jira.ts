@@ -4,7 +4,9 @@ import { fromSet, toSet, type ActorKind, type Event, type IssueRecord } from './
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type RawUser = { accountId?: string; accountType?: string; key?: string; name?: string } | null | undefined;
 export type RawIssue = { id: string; key: string; fields: Record<string, any> };
-export type RawItem = { field: string; fieldId?: string; from?: string | null; to?: string | null; fromString?: string | null; toString?: string | null };
+// `toString` is a real changelog key; read it as an own property, never the inherited Object.prototype.toString
+export type RawItem = { field: string; fieldId?: string; from?: string | null; to?: string | null; fromString?: string | null; toString?: unknown };
+const toStr = (it: RawItem): string | null => (Object.hasOwn(it, 'toString') && typeof it.toString === 'string' ? it.toString : null);
 export type RawHistory = { id: string; created: string; author?: RawUser; items: RawItem[] };
 export type RawComment = { id: string; created: string; author?: RawUser; jsdPublic?: boolean };
 
@@ -99,13 +101,13 @@ export function fromJira(issue: RawIssue, histories: RawHistory[], comments: Raw
       ev.to = fromSet(after);
     } else if (field === 'labels') {
       ev.from = fromSet((item.fromString ?? '').split(/\s+/));
-      ev.to = fromSet((item.toString ?? '').split(/\s+/));
+      ev.to = fromSet((toStr(item) ?? '').split(/\s+/));
     } else if (field === 'organizations') {
       ev.from = fromSet(bracketIds(item.from ?? item.fromString));
-      ev.to = fromSet(bracketIds(item.to ?? item.toString));
+      ev.to = fromSet(bracketIds(item.to ?? toStr(item)));
     } else if (field === 'summary') {
       ev.from = item.fromString ?? null;
-      ev.to = item.toString ?? null;
+      ev.to = toStr(item);
     } else {
       ev.from = item.from ?? null;
       ev.to = item.to ?? null;

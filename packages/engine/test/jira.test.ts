@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { fromJira, AUTOMATION_FOR_JIRA } from '../src/jira';
+import { fromJira, AUTOMATION_FOR_JIRA, type RawHistory } from '../src/jira';
 
 const hash = (id: string) => `h(${id})`;
 const agent = { accountId: 'agent-1', accountType: 'atlassian' };
@@ -26,7 +26,7 @@ const cloudIssue = {
     customfield_10002: [{ id: '4' }],
   },
 };
-const cloudHistories = [
+const cloudHistories: RawHistory[] = [
   { id: '2', created: '2026-11-22T10:30:00.000+0000', author: agent, items: [{ field: 'Request Type', fieldId: 'customfield_10010', from: '320', to: '339' }] },
   {
     id: '3',
@@ -88,7 +88,7 @@ describe('fromJira (Cloud)', () => {
   });
 
   test('other apps are app, not automation', () => {
-    const h = [{ id: '9', created: '2026-11-22T13:00:00.000+0000', author: { accountId: 'x', accountType: 'app' }, items: [{ field: 'priority', fieldId: 'priority', from: '2', to: '1' }] }];
+    const h: RawHistory[] = [{ id: '9', created: '2026-11-22T13:00:00.000+0000', author: { accountId: 'x', accountType: 'app' }, items: [{ field: 'priority', fieldId: 'priority', from: '2', to: '1' }] }];
     expect(fromJira(cloudIssue, h, [], opts).events.at(-1)!.actorKind).toBe('app');
   });
 });
@@ -113,7 +113,7 @@ describe('fromJira (Server/DC, Apache-style)', () => {
       fixVersions: [{ id: '7' }],
     },
   };
-  const histories = [
+  const histories: RawHistory[] = [
     { id: '11', created: '2008-06-07T10:00:00.000+0000', author: { name: 'ann', key: 'ann' }, items: [{ field: 'Component', from: null, to: '20' }, { field: 'Component', from: null, to: '21' }] },
     { id: '12', created: '2008-06-08T10:00:00.000+0000', author: { name: 'bob', key: 'bob' }, items: [{ field: 'status', from: '1', to: '5' }, { field: 'resolution', from: null, to: '1' }, { field: 'Fix Version', from: null, to: '7' }, { field: 'Attachment', from: null, to: '99' }] },
   ];
@@ -137,7 +137,12 @@ describe('fromJira (Server/DC, Apache-style)', () => {
   });
 
   test('delta anomalies are counted, not thrown', () => {
-    const bad = [{ id: '14', created: '2008-06-07T10:00:00.000+0000', author: { name: 'ann' }, items: [{ field: 'Component', from: null, to: '99' }] }];
+    const bad: RawHistory[] = [{ id: '14', created: '2008-06-07T10:00:00.000+0000', author: { name: 'ann' }, items: [{ field: 'Component', from: null, to: '99' }] }];
     expect(fromJira(issue, bad, [], { hash }).anomalies).toBe(1);
   });
+});
+
+test('a label item without toString yields an empty set, not the inherited function', () => {
+  const h: RawHistory[] = [{ id: '5', created: '2026-11-22T13:00:00.000+0000', author: agent, items: [{ field: 'labels', fieldId: 'labels', fromString: 'cleanup follow-up' }] }];
+  expect(fromJira(cloudIssue, h, [], opts).events.at(-1)).toMatchObject({ from: 'cleanup,follow-up', to: null });
 });
