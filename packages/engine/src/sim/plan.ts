@@ -51,7 +51,7 @@ export function planDay(config: SimConfig, dayIndex: number, seed: number): Plan
     const topic = config.topics.find((t) => (roll -= t.weight) < 0) ?? config.topics[config.topics.length - 1]!;
     const n = String(1000 + Math.floor(r() * 9000));
     const summary = pick(r, topic.summaries).replace('{n}', n);
-    const description = pick(r, topic.descriptions);
+    const description = r() < config.topicDescriptionRate ? pick(r, topic.descriptions) : pick(r, config.genericDescriptions);
     const vip = c.org === config.vipOrg;
     const actions: PlannedAction[] = [];
 

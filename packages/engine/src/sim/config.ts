@@ -30,6 +30,9 @@ export interface SimConfig {
   vipOrg: string;
   topics: Topic[];
   chores: PlantedChore[];
+  /** most requests use these; topic descriptions only sometimes (so descriptions don't give the topic away) */
+  genericDescriptions: string[];
+  topicDescriptionRate: number;
   noiseRate: number;
   customerReplyRate: number;
   bulkEditEveryDays: number;
@@ -86,6 +89,8 @@ export const BOT_CONFIG: SimConfig = {
     { id: 'outage-priority', topic: 'outage', kind: 'setPriority', value: 'Highest', probability: 0.8, minDelayMs: 2 * MIN, maxDelayMs: 30 * MIN, live: true },
     { id: 'customer-reply', topic: null, kind: 'transition', value: 'In Progress', probability: 0.85, minDelayMs: 10 * MIN, maxDelayMs: 3 * HOUR, live: false },
   ],
+  genericDescriptions: ['Thanks in advance.', 'When you get a chance.', 'Details attached.', 'This is blocking my work.', 'Started this morning.', 'Please advise, thanks.', 'Urgent please.', 'Whole team affected.'],
+  topicDescriptionRate: 0.3,
   noiseRate: 0.07,
   customerReplyRate: 0.3,
   bulkEditEveryDays: 7,
