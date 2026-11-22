@@ -1,0 +1,17 @@
+{
+  "name": "history-bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "setup": "tsx src/setup.ts",
+    "tick": "tsx src/bot.ts"
+  },
+  "dependencies": {
+    "@wind-tunnel/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

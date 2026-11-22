@@ -32,6 +32,16 @@ importers:
 
   packages/engine: {}
 
+  tools/history-bot:
+    dependencies:
+      '@wind-tunnel/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':
