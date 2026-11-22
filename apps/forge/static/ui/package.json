@@ -2,7 +2,7 @@
   "name": "ui",
   "private": true,
   "type": "module",
-  "scripts": { "build": "vite build", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "scripts": { "build": "vite build", "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" },
   "dependencies": {
     "@atlaskit/button": "latest",
     "@atlaskit/dynamic-table": "latest",

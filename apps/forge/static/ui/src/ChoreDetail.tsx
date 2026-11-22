@@ -33,7 +33,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
   const [notice, setNotice] = useState<{ appearance: 'success' | 'warning' | 'error'; text: string } | null>(null);
 
   const load = () => call<Detail>('chore', { choreId }).then(setD).catch((e) => setError(String(e.message)));
-  useEffect(() => { void load(); }, [choreId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [choreId]);
 
   if (error) return <SectionMessage appearance="error" title="Couldn’t load this chore">{error}</SectionMessage>;
   if (!d) return <Spinner label="Loading proof" />;
