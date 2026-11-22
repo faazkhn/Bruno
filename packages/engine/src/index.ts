@@ -12,3 +12,4 @@ export * from './learner';
 export * from './replay';
 export * from './pipeline';
 export * from './exceptions';
+export * from './sentence';
