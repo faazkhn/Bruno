@@ -1,7 +1,8 @@
 /**
- * Exceptions (PRD §12): group differences by a single trigger-time fact, rank by lift,
- * suggest "NOT group" when it explains >= 50% of "rule would act" differences and
- * raises learn-split F1. Accepting makes a new, re-proved version.
+ * Exceptions (PRD §12): group the rule's differences by a single trigger-time fact, rank by lift,
+ * suggest "NOT group" when it explains >= 50% of "rule would act" differences and raises F1.
+ * Everything here is computed on the LEARNING period: the holdout is only ever used for the
+ * re-proof, so the reported holdout numbers stay an unbiased test (review 2026-11-22).
  */
 import { evalJql, toJql, type Expr } from './jql';
 import { buildExamples, scoreClauses, type Example } from './learner';
@@ -39,10 +40,10 @@ function factsOf(ex: Example): Expr[] {
   return out;
 }
 
-export function findExceptions(chore: Chore, issues: IssueRecord[], window: Analysis['window'], s: Settings): { groups: ExceptionGroup[]; suggestion?: Suggestion } {
-  const { learn, holdout } = splitOf(window);
+export function findExceptions(chore: Chore, issues: IssueRecord[], window: Analysis['window'], s: Settings): { period: { from: number; to: number }; groups: ExceptionGroup[]; suggestion?: Suggestion } {
+  const { learn } = splitOf(window);
   const W = s.windowHours * 3_600_000;
-  const examples = buildExamples(issues, chore.trigger, chore.action, holdout, W);
+  const examples = buildExamples(issues, chore.trigger, chore.action, learn, W);
   const fires = (e: Example) => chore.clauses.map((c) => evalJql(c, e.snap, { description: descriptionAt(e.issue, e.event.ts) }));
   const rows = examples
     .map((e) => ({ e, r: fires(e) }))
@@ -74,13 +75,14 @@ export function findExceptions(chore: Chore, issues: IssueRecord[], window: Anal
   }
 
   const top = groups.find((g) => g.outcome === 'FP');
-  if (!top || top.differences / top.ofDifferences < 0.5) return { groups };
-  const learnEx = buildExamples(issues, chore.trigger, chore.action, learn, W);
+  const period = learn;
+  if (!top || top.differences / top.ofDifferences < 0.5) return { period, groups };
+  const learnEx = examples;
   const clause: Expr = { op: 'not', arg: top.clause };
   const before = scoreClauses(learnEx, chore.clauses).f1;
   const after = scoreClauses(learnEx, [...chore.clauses, clause]).f1;
-  if (after <= before) return { groups };
-  return { groups, suggestion: { clause, share: top.differences / top.ofDifferences, lift: top.lift, learnF1Before: before, learnF1After: after } };
+  if (after <= before) return { period, groups };
+  return { period, groups, suggestion: { clause, share: top.differences / top.ofDifferences, lift: top.lift, learnF1Before: before, learnF1After: after } };
 }
 
 export function applyExclusion(chore: Chore, clause: Expr, issues: IssueRecord[], window: Analysis['window'], s: Settings): Chore {
@@ -92,11 +94,11 @@ export function applyExclusion(chore: Chore, clause: Expr, issues: IssueRecord[]
   return {
     ...chore,
     version: chore.version + 1,
-    note: 'exclusion chosen after seeing differences',
+    note: 'exclusion learned on the learning period; holdout untouched until this re-proof',
     clauses,
     learn: { ...scoreClauses(learnEx, clauses), examples: learnEx.length },
     proof,
-    verdict: verdictOf(proof, s),
+    verdict: verdictOf(proof, s, chore.risk),
     perMonth: (proof.tp / Math.max(1, (window.end - window.cut) / 86_400_000)) * 30,
   };
 }

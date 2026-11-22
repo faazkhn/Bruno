@@ -10,7 +10,15 @@ import { chooseTrigger, type Trigger, type TriggerChoice } from './triggers';
 
 const DAY = 86_400_000;
 
-export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak';
+export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak' | 'needs-judgment';
+export type Risk = 'low' | 'medium' | 'high';
+
+/** How costly a wrong automatic action is. Closing or resolving work is never recommended. */
+export function riskOf(a: Action, s: Settings): Risk {
+  if (a.field === 'resolution' || (a.kind === 'transition' && s.doneStatuses.includes(a.value))) return 'high';
+  if (a.kind === 'transition' || a.field === 'priority' || a.field === 'assignee') return 'medium';
+  return 'low';
+}
 
 export interface Chore {
   id: string;
@@ -29,6 +37,7 @@ export interface Chore {
   learn: { f1: number; precision: number; recall: number; examples: number };
   proof: Proof;
   verdict: Verdict;
+  risk: Risk;
   /** holdout matches per 30 days: the ranking key (expected automated actions × precision) */
   perMonth: number;
 }
@@ -40,8 +49,11 @@ export interface Analysis {
   unexplained: { id: string; action: Action; count: number; reason: 'no-trigger' | 'no-pattern' }[];
 }
 
-export const verdictOf = (p: Proof, s: Settings): Verdict =>
-  p.tp + p.fn < s.minHoldoutPositives ? 'too-few' : p.coverage < s.minCoverage ? 'low-coverage' : p.precision < s.minPrecision ? 'weak' : 'proven';
+export const verdictOf = (p: Pick<Proof, 'tp' | 'fn' | 'coverage' | 'precision'>, s: Settings, risk: Risk): Verdict =>
+  risk === 'high' ? 'needs-judgment'
+    : p.tp + p.fn < s.minHoldoutPositives ? 'too-few'
+      : p.coverage < s.minCoverage ? 'low-coverage'
+        : p.precision < s.minPrecisionByRisk[risk] ? 'weak' : 'proven';
 
 export const splitOf = (w: Analysis['window']) => ({ learn: { from: w.start, to: w.cut }, holdout: { from: w.cut, to: w.end } });
 
@@ -78,7 +90,8 @@ export function analyse(issues: IssueRecord[], s: Settings, now: number): Analys
       continue;
     }
     const proof = replay(rule.clauses, choice.trigger, cand.action, issues, holdout, W);
-    const verdict = verdictOf(proof, s);
+    const risk = riskOf(cand.action, s);
+    const verdict = verdictOf(proof, s, risk);
     const { trigger, ...triggerStats } = choice;
     chores.push({
       id: cand.id,
@@ -94,6 +107,7 @@ export function analyse(issues: IssueRecord[], s: Settings, now: number): Analys
       learn: { f1: rule.f1, precision: rule.precision, recall: rule.recall, examples: examples.length },
       proof,
       verdict,
+      risk,
       perMonth: (proof.tp / Math.max(1, (end - cut) / DAY)) * 30,
     });
   }

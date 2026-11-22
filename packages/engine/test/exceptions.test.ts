@@ -11,6 +11,13 @@ const result = analyse(issues, DEFAULT_SETTINGS, now);
 const billing = result.chores.find((c) => c.id === `set:requestType:${SIM_IDS.requestType.Billing}`)!;
 const ex = findExceptions(billing, issues, result.window, DEFAULT_SETTINGS);
 
+test('exceptions are learned on the learning period only, so the holdout stays an unbiased test', () => {
+  expect(ex.period).toEqual({ from: result.window.start, to: result.window.cut });
+  // every case key in a group must be an item whose trigger happened in the learning period
+  const learnKeys = new Set(issues.filter((i) => i.createdAt >= result.window.start && i.createdAt < result.window.cut).map((i) => i.key));
+  for (const g of ex.groups) expect(g.caseKeys.every((k) => learnKeys.has(k))).toBe(true);
+});
+
 test('groups "rule would act" differences by one trigger-time fact, ranked by lift', () => {
   const top = ex.groups.find((g) => g.outcome === 'FP')!;
   expect(toJql(top.clause)).toBe(`organizations = "${SIM_IDS.organizations.Initech}"`);
@@ -31,7 +38,7 @@ test('applying the exclusion makes a new version, re-proved and honestly labelle
   expect(v2.clauses).toHaveLength(billing.clauses.length + 1);
   expect(v2.proof.precision).toBeGreaterThan(billing.proof.precision);
   expect(v2.proof.range).toEqual(billing.proof.range);
-  expect(v2.note).toBe('exclusion chosen after seeing differences');
+  expect(v2.note).toBe('exclusion learned on the learning period; holdout untouched until this re-proof');
 });
 
 test('no suggestion when nothing explains half of the differences', () => {

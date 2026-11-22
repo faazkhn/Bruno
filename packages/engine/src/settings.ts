@@ -12,8 +12,10 @@ export interface Settings {
   minCoverage: number;
   /** learn-split precision below this = no pattern, not a chore */
   minLearnPrecision: number;
-  /** holdout precision below this = 'weak', never 'proven' */
-  minPrecision: number;
+  /** holdout precision needed for 'proven', by risk (precision first: wrong automatic changes cost more than misses) */
+  minPrecisionByRisk: { low: number; medium: number };
+  /** status ids that end the work (done category); transitions there and resolutions need human judgment */
+  doneStatuses: string[];
   top: number;
   /** 'now' or 'lastActivity' (seeded/old projects: window ends at the last event) */
   anchor: 'now' | 'lastActivity';
@@ -32,7 +34,8 @@ export const DEFAULT_SETTINGS: Settings = {
   minHoldoutPositives: 10,
   minCoverage: 0.8,
   minLearnPrecision: 0.3,
-  minPrecision: 0.5,
+  minPrecisionByRisk: { low: 0.8, medium: 0.85 },
+  doneStatuses: [],
   top: 10,
   anchor: 'now',
   excludedFields: [],

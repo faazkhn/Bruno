@@ -3,7 +3,7 @@
  * history-bot config (BOT_CONFIG), 90 days, 4 agents, seed 2026. Writes docs/accuracy.md section B.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { analyse, DEFAULT_SETTINGS, toJql, triggerKey, type Chore } from '@wind-tunnel/engine';
+import { analyse, applyExclusion, DEFAULT_SETTINGS, findExceptions, toJql, triggerKey, type Chore } from '@wind-tunnel/engine';
 import { BOT_CONFIG, SIM_IDS, simulateHistory } from '@wind-tunnel/engine/sim';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
@@ -23,14 +23,22 @@ const planted = [
 ];
 const pct = (x: number) => (100 * x).toFixed(1) + '%';
 const jql = (c: Chore) => c.clauses.map((x) => toJql(x)).join(' AND ') || '(no conditions)';
-const row = (c: Chore) => `${triggerKey(c.trigger)} | ${jql(c)} | ${c.proof.tp} / ${c.proof.tp + c.proof.fp} | ${pct(c.proof.precision)} | ${pct(c.proof.recall)} | ${pct(c.proof.coverage)} | ${c.verdict}`;
+const v2 = (c: Chore) => {
+  const ex = findExceptions(c, issues, result.window, DEFAULT_SETTINGS);
+  return ex.suggestion ? applyExclusion(c, ex.suggestion.clause, issues, result.window, DEFAULT_SETTINGS) : null;
+};
+const after = (c: Chore) => {
+  const x = v2(c);
+  return x ? `${toJql(x.clauses.at(-1)!)} → ${x.proof.tp} / ${x.proof.tp + x.proof.fp}, ${pct(x.proof.precision)}, ${x.verdict}` : '—';
+};
+const row = (c: Chore) => `${triggerKey(c.trigger)} | ${jql(c)} | ${c.proof.tp} / ${c.proof.tp + c.proof.fp} | ${pct(c.proof.precision)} | ${pct(c.proof.recall)} | ${pct(c.proof.coverage)} | ${c.verdict} (${c.risk} risk) | ${after(c)}`;
 
 let recovered = 0;
 const rows = planted.map((p) => {
   const c = result.chores.find((x) => x.id === p.chore);
   const ok = !!c && triggerKey(c.trigger) === p.trigger && p.must.every((w) => jql(c).includes(`"${w}"`));
   if (ok) recovered++;
-  return `| ${p.id} | ${ok ? '✅' : '❌'} | ${c ? row(c) : '— not found — | | | | | |'} |`;
+  return `| ${p.id} | ${ok ? '✅' : '❌'} | ${c ? row(c) : '— not found — | | | | | | |'} |`;
 });
 const extra = result.chores.filter((c) => !planted.some((p) => p.chore === c.id));
 const date = new Date().toISOString().slice(0, 10);
@@ -42,17 +50,17 @@ A planted chore counts as recovered when the miner finds the same action, the sa
 
 **Result: ${recovered} / ${planted.length} planted chores recovered (${pct(recovered / planted.length)})** (pass bar ≥ 90%) — ${recovered / planted.length >= 0.9 ? 'PASS' : 'FAIL'}
 
-| Planted | Recovered | Trigger | Learned conditions | Holdout matches / fires | Precision | Recall | Coverage | Verdict |
-|---|---|---|---|---|---|---|---|---|
+| Planted | Recovered | Trigger | Learned conditions | Holdout agreed / would act | Precision | Recall | Coverage | Verdict v1 | After the exclusion learned on the learning period (re-proved on the untouched holdout) |
+|---|---|---|---|---|---|---|---|---|---|
 ${rows.join('\n')}
 
-Precision below 100% is expected and honest: the bot plants 15–20% deviations and VIP requests handled differently (the exceptions step, slice 4, finds those). Recall counts every human action in the holdout, including ones with no trigger before them.
+Precision is measured over every moment the rule could act on the holdout (not only items people changed), and it is agreement with what the team did, not proof the team was right. \"Proven\" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for medium (priority, assignee, status); closing/resolving work is never recommended. Exceptions are learned on the learning period only, so the re-proof stays an unbiased test. The bot plants ~15% deviations, so even a perfect rule can't reach 100%. Recall counts every human action in the holdout, including ones with no trigger before them.
 
 Other chores the miner reported that are not in the planted list (e.g. the senior agent's VIP habit is a real pattern in this history), ${extra.length}:
 
-| Chore | Trigger | Conditions | Holdout matches / fires | Precision | Recall | Coverage | Verdict |
-|---|---|---|---|---|---|---|---|
-${extra.map((c) => `| ${c.id} | ${row(c)} |`).join('\n') || '| — | | | | | | | |'}
+| Chore | Trigger | Conditions | Holdout agreed / would act | Precision | Recall | Coverage | Verdict v1 | After learned exclusion |
+|---|---|---|---|---|---|---|---|---|
+${extra.map((c) => `| ${c.id} | ${row(c)} |`).join('\n') || '| — | | | | | | | | |'}
 
 Not automatable (no trigger within the rules): ${result.unexplained.map((u) => `${u.id} (${u.count}, ${u.reason})`).join(', ') || 'none'}.
 

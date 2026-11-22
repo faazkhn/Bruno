@@ -27,7 +27,7 @@ describe('logic', () => {
 
   test('summary is what list views and Rovo show: real numbers only', () => {
     expect(summarise('WT', chore, 'Some sentence', 'new')).toEqual({
-      ref: 'WT/set:requestType:339', id: chore.id, version: 1, sentence: 'Some sentence', count: 40, people: 2,
+      ref: 'WT/set:requestType:339', id: chore.id, version: 1, sentence: 'Some sentence', risk: undefined, count: 40, people: 2,
       matches: 30, fires: 33, differences: 73, precision: 0.9, recall: 0.3, coverage: 1, verdict: 'proven', status: 'new', perMonth: 12,
     });
   });

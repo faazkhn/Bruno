@@ -144,7 +144,12 @@ export async function setNudgeState(issueId: string, userHash: string, choreId: 
 
 // ---- KVS ----
 export type AppSettings = Settings & { adminProjectKey?: string };
-export const getSettings = async (p: string): Promise<AppSettings> => ({ ...DEFAULT_SETTINGS, ...((await kvs.get<Partial<Settings>>(`settings:${p}`)) ?? {}) });
+export const getSettings = async (p: string): Promise<AppSettings> => ({
+  ...DEFAULT_SETTINGS,
+  ...((await kvs.get<Partial<Settings>>(`settings:${p}`)) ?? {}),
+  doneStatuses: (await kvs.get<string[]>(`done:${p}`)) ?? [],
+});
+export const putDoneStatuses = (p: string, ids: string[]) => kvs.set(`done:${p}`, ids);
 export const putSettings = (p: string, s: Partial<AppSettings>) => kvs.set(`settings:${p}`, s);
 
 export interface Progress { phase: 'idle' | 'listing' | 'fetching' | 'mining' | 'proving' | 'done' | 'error'; done: number; startedAt: number; finishedAt?: number; error?: string }

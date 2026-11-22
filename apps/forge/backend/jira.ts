@@ -71,6 +71,12 @@ export async function names(projectKey: string): Promise<Record<string, Record<s
   };
 }
 
+/** Status ids in the "done" category: moving work there needs human judgment. */
+export async function doneStatuses(): Promise<string[]> {
+  const xs = await call<any[]>(asApp(), route`/rest/api/3/status`).catch(() => []);
+  return xs.filter((x) => x.statusCategory?.key === 'done').map((x) => String(x.id));
+}
+
 export async function canBrowse(projectKey: string): Promise<boolean> {
   const r = await call<any>(asUser(), route`/rest/api/3/mypermissions?projectKey=${projectKey}&permissions=BROWSE_PROJECTS`).catch(() => null);
   return !!r?.permissions?.BROWSE_PROJECTS?.havePermission;

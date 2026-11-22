@@ -6,7 +6,7 @@ import {
   actionOf, analyse, applyExclusion, describeClause, findExceptions, fromJira, fromNativeRule, replay, sentence, snapshotBefore, toNativeRule,
   type Chore, type IssueRecord, type NativeExport, type Names,
 } from '@wind-tunnel/engine';
-import { call, canBrowse, changelogs, commentsOf, fieldIds, names, searchPage } from './jira';
+import { call, canBrowse, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
 import { choreRef, isReversal, nudgeMatches, summarise, trimChore, type ChoreStatus, type StoredChore } from './logic';
 import * as db from './store';
 
@@ -67,6 +67,7 @@ async function loadDemoHistory(projectKey: string) {
     requestType: flip(SIM_IDS.requestType), components: flip(SIM_IDS.components), priority: flip(SIM_IDS.priority),
     status: flip(SIM_IDS.status), organizations: flip(SIM_IDS.organizations), issuetype: { [SIM_IDS.issuetype]: 'Service request' },
   });
+  await db.putDoneStatuses(projectKey, [SIM_IDS.status.Resolved!]);
   const ids = (await db.getFieldIds(projectKey)) as Record<string, string>;
   if (!ids.projectId) {
     const project = await call(asApp(), route`/rest/api/3/project/${projectKey}`);
@@ -99,6 +100,7 @@ async function ingestPage(projectKey: string, nextPageToken?: string) {
     const project = await call(asApp(), route`/rest/api/3/project/${projectKey}`);
     await db.putFieldIds(projectKey, { ...ids, projectId: String(project.id), projectTypeKey: project.projectTypeKey });
     await db.putNames(projectKey, await names(projectKey));
+    await db.putDoneStatuses(projectKey, await doneStatuses());
   }
   const ids = await db.getFieldIds(projectKey);
   // 'lastActivity' (seeded/old projects): no date filter, newest first, capped
@@ -191,7 +193,7 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
   const d = await choreDetail(projectKey, choreId);
   if (!d) throw new Error(`No chore ${choreId} in ${projectKey}.`);
   const c = d.chore;
-  const blocked = c.verdict !== 'proven' ? `its proof is "${c.verdict}"` : c.proof.coverage < d.settings.minCoverage ? `coverage is ${(c.proof.coverage * 100).toFixed(0)}% (needs ${(d.settings.minCoverage * 100).toFixed(0)}%)` : null;
+  const blocked = c.verdict === 'needs-judgment' ? 'this action ends or resolves work, which needs human judgment' : c.verdict !== 'proven' ? `its proof is "${c.verdict}"` : c.proof.coverage < d.settings.minCoverage ? `coverage is ${(c.proof.coverage * 100).toFixed(0)}% (needs ${(d.settings.minCoverage * 100).toFixed(0)}%)` : null;
   const understood = { projectKey, choreId, version: c.version, sentence: c.sentence };
   if (blocked) return { understood, created: false, reason: `Not ready for hand-off: ${blocked}.` };
   if (!confirm) return { understood, created: false, reason: 'Confirmation needed: this creates a work item for your Jira admin.' };
@@ -206,7 +208,7 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
   const p = c.proof;
   const text = [
     `Rule: ${c.sentence}`,
-    `Proof (holdout ${fmt(p.range.from)} → ${fmt(p.range.to)}, not used for learning): matched the team on ${p.tp} of ${p.tp + p.fp} times it would act (precision ${(p.precision * 100).toFixed(1)}%); people did it ${p.tp + p.fn} times, the rule would have caught ${p.tp} (recall ${(p.recall * 100).toFixed(1)}%); coverage ${(p.coverage * 100).toFixed(1)}%.`,
+    `Proof (holdout ${fmt(p.range.from)} → ${fmt(p.range.to)}, not used for learning or for choosing exclusions). This measures agreement with what the team did, not whether the team was right: the rule agreed with the team on ${p.tp} of ${p.tp + p.fp} times it would act (precision ${(p.precision * 100).toFixed(1)}%); people did it ${p.tp + p.fn} times, the rule would have caught ${p.tp} (recall ${(p.recall * 100).toFixed(1)}%); coverage ${(p.coverage * 100).toFixed(1)}%.`,
     c.note ? `Note: ${c.note}.` : '',
     'Import: Settings → System → Global automation → … → Import rules → choose the attached JSON. Imported rules arrive disabled; review, then enable. When it runs it sets the issue property windtunnel.run so Wind Tunnel can report live results.',
     'Rule JSON format verification against a real export: pending (see Wind Tunnel docs).',

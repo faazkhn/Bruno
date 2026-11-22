@@ -19,6 +19,7 @@ export function trimChore(c: Chore, perOutcome = 50): StoredChore {
 }
 
 export interface ChoreSummary {
+  risk: Chore['risk'];
   ref: string;
   id: string;
   version: number;
@@ -38,7 +39,7 @@ export interface ChoreSummary {
 
 export function summarise(projectKey: string, c: Chore, sentence: string, status: ChoreStatus): ChoreSummary {
   return {
-    ref: choreRef(projectKey, c.id), id: c.id, version: c.version, sentence, count: c.count, people: c.people,
+    ref: choreRef(projectKey, c.id), id: c.id, version: c.version, sentence, risk: c.risk, count: c.count, people: c.people,
     matches: c.proof.tp, fires: c.proof.tp + c.proof.fp, differences: c.proof.fp + c.proof.fn,
     precision: c.proof.precision, recall: c.proof.recall, coverage: c.proof.coverage, verdict: c.verdict, status, perMonth: c.perMonth,
   };

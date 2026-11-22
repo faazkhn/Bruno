@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { toJql } from '../src/jql';
-import { analyse } from '../src/pipeline';
+import { analyse, riskOf, verdictOf } from '../src/pipeline';
+import { applyExclusion, findExceptions } from '../src/exceptions';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import { BOT_CONFIG, SIM_IDS, simulateHistory } from '../src/sim';
 
@@ -21,7 +22,6 @@ describe('analyse — test B (planted chores recovered with correct trigger + co
     const c = chore(`set:requestType:${SIM_IDS.requestType.Billing}`)!;
     expect(c.trigger).toEqual({ type: 'created' });
     expect(c.clauses.map((x) => toJql(x))).toContain('summary ~ "invoice"');
-    expect(c.verdict).toBe('proven');
   });
 
   test('vpn: created + summary mentions vpn → Network', () => {
@@ -53,10 +53,38 @@ describe('analyse — test B (planted chores recovered with correct trigger + co
   test('noise with no learnable pattern is not a chore; nothing weak is called proven', () => {
     expect(chore('add:labels:follow-up')).toBeUndefined();
     expect(result.unexplained.some((u) => u.id === 'add:labels:follow-up' && u.reason === 'no-pattern')).toBe(true);
-    for (const c of result.chores) if (c.verdict === 'proven') expect(c.proof.precision).toBeGreaterThanOrEqual(DEFAULT_SETTINGS.minPrecision);
   });
 
   test('empty project: no chores, no throw', () => {
     expect(analyse([], DEFAULT_SETTINGS, now).chores).toEqual([]);
+  });
+});
+
+describe('risk: precision first, and knowing when not to automate', () => {
+  test('risk levels by action', () => {
+    const s = { ...DEFAULT_SETTINGS, doneStatuses: [SIM_IDS.status.Resolved!] };
+    expect(riskOf({ kind: 'add', field: 'labels', value: 'x' }, s)).toBe('low');
+    expect(riskOf({ kind: 'set', field: 'requestType', value: '339' }, s)).toBe('low');
+    expect(riskOf({ kind: 'set', field: 'priority', value: '1' }, s)).toBe('medium');
+    expect(riskOf({ kind: 'transition', field: 'status', value: SIM_IDS.status['In Progress']! }, s)).toBe('medium');
+    expect(riskOf({ kind: 'transition', field: 'status', value: SIM_IDS.status.Resolved! }, s)).toBe('high');
+    expect(riskOf({ kind: 'set', field: 'resolution', value: '1' }, s)).toBe('high');
+  });
+
+  test('proven needs the precision bar for its risk; high-risk actions need judgment', () => {
+    for (const c of result.chores) {
+      if (c.verdict === 'proven') expect(c.proof.precision).toBeGreaterThanOrEqual(DEFAULT_SETTINGS.minPrecisionByRisk[c.risk as 'low' | 'medium']);
+    }
+    const p = { tp: 50, fp: 5, fn: 10, tn: 100, inconclusive: 0, precision: 50 / 55, recall: 50 / 60, coverage: 1 } as never;
+    expect(verdictOf(p, DEFAULT_SETTINGS, 'high')).toBe('needs-judgment');
+    expect(verdictOf(p, DEFAULT_SETTINGS, 'low')).toBe('proven');
+  });
+
+  test('the billing story: v1 is weak because of the VIP exception; the learned exclusion makes it proven', () => {
+    const c = chore(`set:requestType:${SIM_IDS.requestType.Billing}`)!;
+    expect(c.verdict).toBe('weak');
+    const ex = findExceptions(c, issues, result.window, DEFAULT_SETTINGS);
+    const v2 = applyExclusion(c, ex.suggestion!.clause, issues, result.window, DEFAULT_SETTINGS);
+    expect(v2.verdict).toBe('proven');
   });
 });

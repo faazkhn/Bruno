@@ -9,7 +9,7 @@ export async function call<T>(name: string, payload: Record<string, unknown> = {
 
 /* Shapes returned by apps/forge/backend/service.ts */
 export type Status = 'new' | 'dismissed' | 'proven' | 'handed_off' | 'live';
-export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak';
+export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak' | 'needs-judgment';
 export interface Summary {
   ref: string; id: string; version: number; sentence: string; count: number; people: number; matches: number; fires: number;
   differences: number; precision: number; recall: number; coverage: number; verdict: Verdict; status: Status; perMonth: number; handoff?: string | null;
@@ -30,7 +30,7 @@ export interface ChoreDetail {
     trigger: { type: string; value?: string; field?: string }; action: { kind: string; field: string; value: string };
     proof: { range: { from: number; to: number }; tp: number; fp: number; fn: number; tn: number; inconclusive: number; precision: number; recall: number; coverage: number; cases: Case[] };
     learn: { f1: number; precision: number; recall: number; examples: number };
-    exceptions?: { groups: Group[]; described?: string[]; suggestion?: { share: number; lift: number; learnF1Before: number; learnF1After: number }; suggestionText?: string };
+    exceptions?: { period?: { from: number; to: number }; groups: Group[]; described?: string[]; suggestion?: { share: number; lift: number; learnF1Before: number; learnF1After: number }; suggestionText?: string };
   };
   demo: boolean; status: Status; names: Record<string, Record<string, string>>; window: Window | null; settings: Settings; handoff: { handoff_key: string } | null; summary: Summary;
 }

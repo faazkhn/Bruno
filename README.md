@@ -4,18 +4,19 @@
 
 Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian (no egress, no external services, no LLM decides anything).
 
-> Others recommend what to automate. Wind Tunnel hands over a rule already proven against your own team's work, with the exceptions listed.
+> Jira can suggest automations. Wind Tunnel finds the work your team repeats by hand, then proves a rule on cases it has never seen — before anyone turns it on.
 
 ## What it does
 
 1. **Finds chores.** Reads a project's history (changelog + comments) and finds actions people repeat by hand — e.g. *set Request type to Billing*, *add the Network component*, *move to In Progress when the customer replies*. Deterministic mining, no AI guessing.
 2. **Learns the rule.** For each chore it finds the trigger (created, customer commented, status changed, field changed) and up to three conditions that were true *at trigger time* — e.g. *summary mentions "invoice"*. Every rule reads as one sentence.
-3. **Proves it on a holdout.** Learns on the first two thirds of the window and replays the rule on the last third, which it never saw: *"matched your team on N of M; the rule would act where people didn't X times; people acted where it wouldn't Y times"*. Every number clicks through to the real Jira items.
-4. **Handles exceptions.** Groups the differences by one trigger-time fact (*"6 of 9 are organisation Initech"*) and suggests an exclusion only if it explains ≥ 50% and improves the learning-period score. Accepting creates a new version, re-proved on the same holdout, honestly labelled.
-5. **Hands off.** Creates a Jira work item for the admin with the proof summary, the native Automation rule JSON (arrives **disabled** on import) and import steps. Nothing else in Jira is changed.
-6. **Tracks live results.** Generated rules set an issue property (`windtunnel.run`) when they run; Wind Tunnel reports runs and human reversals within 24 h every week.
-7. **Nudges in the ticket.** Right after an agent does a proven chore by hand, the issue panel shows *"You and N teammates did this M times…"* with Open proof / Send to admin / Not a chore.
-8. **Rovo agent + MCP.** Ask *"What do we do most by hand?"*, *"Prove the billing chore"*, *"Send it to our admin"*. Four actions (`list-chores`, `prove-chore`, `send-to-admin`, `replay-rule`); three read-only ones are also exposed through `rovo:mcp`.
+3. **Proves it on a holdout.** Learns on the first two thirds of the window and replays the rule on the last third, which it never saw — at **every** moment the rule could have acted, not just on items people changed: *"agreed with your team on N of the M times it would act"* (precision first), plus where people acted and it wouldn't (recall). Every number clicks through to the real Jira items. It measures agreement with what the team did, not proof the team was right.
+4. **Knows when not to automate.** "Proven" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for priority, assignee and status moves; closing or resolving work is never recommended ("needs judgment"). Anything it can't model is inconclusive, never safe.
+5. **Explains and fixes its own misses.** Groups the rule's mistakes **in the learning period** by one trigger-time fact (*"most are organisation Initech"*) and suggests an exclusion only if it explains ≥ 50% and improves the learning-period score. Accepting creates a new version, re-proved on the untouched holdout — so the improved number is still an unbiased test.
+6. **Hands off.** Creates a Jira work item for the admin with the evidence, an implementation-ready Automation rule definition (JSON to import — it arrives **disabled** — or recreate by hand) and the steps. Forge apps can't create Automation rules directly, and Wind Tunnel doesn't try; an admin reviews and enables.
+7. **Tracks live results.** Generated rules set an issue property (`windtunnel.run`) when they run; Wind Tunnel reports runs and *possible human corrections* (a person set the field back within 24 h of a signed run) every week.
+8. **Nudges in the ticket.** Right after an agent does a proven chore by hand, the issue panel shows *"You and N teammates did this M times…"* with Open proof / Send to admin / Not a chore.
+9. **Rovo agent + MCP.** Ask *"What do we do most by hand?"*, *"Prove the billing chore"*, *"Send it to our admin"*. Four actions (`list-chores`, `prove-chore`, `send-to-admin`, `replay-rule`); three read-only ones are also exposed through `rovo:mcp`.
 
 Privacy: actors are stored as salted hashes; the only identity ever resolved is the viewer's own ("you and 3 teammates"). No per-person statistics or rankings.
 
@@ -24,7 +25,7 @@ Privacy: actors are stored as salted hashes; the only identity ever resolved is 
 | Test | Proves | Data | Result | Bar |
 |---|---|---|---|---|
 | A Reconstruction | Past states of an item are rebuilt correctly | 500 public Apache Jira issues (the Public Jira Dataset's source) | **99.90%** (3,056 / 3,059 checks), 3 misses listed | ≥ 99% |
-| B Miner recovery | The miner finds planted chores with the right trigger and conditions | 90 days generated from the published history-bot config (4 agents, VIP exception, 7% noise, bulk edits) | **4 / 4** planted chores recovered | ≥ 90% |
+| B Miner recovery | The miner finds planted chores with the right trigger and conditions | 90 days generated from the published history-bot config (4 agents, VIP exception, 7% noise, bulk edits) | **4 / 4** planted chores recovered. Billing: 70.5% → *not yet*; after the exclusion learned on the learning period: **85.3%, proven** on the untouched holdout. Outage stays *not yet* (68.7%, no qualifying exclusion). | ≥ 90% |
 | C Live execution | Generated rules behave as predicted on a live site | Demo site, rules imported + enabled | *pending — needs rules imported on the site (see docs/HUMAN_TODO.md)* | per-rule table |
 | D Import round-trip | Generated JSON imports without edits | Second project / site | *offline round-trip passes (golden file + parse ↔ generate); live import pending* | 100% |
 

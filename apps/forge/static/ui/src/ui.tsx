@@ -19,8 +19,9 @@ export const StatusChip = ({ status }: { status: Status }) => <Lozenge appearanc
 
 const VERDICT: Record<Verdict, { text: string; appearance: 'success' | 'moved' | 'default' | 'removed'; hint: string }> = {
   proven: { text: 'Proven', appearance: 'success', hint: 'Matched the team on the holdout period with enough cases and coverage.' },
-  weak: { text: 'Weak', appearance: 'moved', hint: 'On the holdout period the rule would act more often where people didn’t than where they did.' },
+  weak: { text: 'Not yet', appearance: 'moved', hint: 'On the holdout period the rule agreed with the team less often than the bar for this kind of change (80% for labels/categories, 85% for priority, assignee and status). Look at the exceptions.' },
   'too-few': { text: 'Too few cases', appearance: 'default', hint: 'Fewer than 10 holdout cases where people did this — not enough to prove anything yet.' },
+  'needs-judgment': { text: 'Needs judgment', appearance: 'default', hint: 'This action closes or resolves work. Wind Tunnel never recommends automating it, however often people do it.' },
   'low-coverage': { text: 'Inconclusive', appearance: 'removed', hint: 'Too many cases could not be modelled (coverage under 80%) — never treated as safe.' },
 };
 export const VerdictChip = ({ verdict }: { verdict: Verdict }) => (

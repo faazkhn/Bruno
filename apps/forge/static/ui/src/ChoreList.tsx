@@ -176,7 +176,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
             {weekly.live.map((l) => (
               <Text key={l.ref}>
                 {l.sentence}: ran {l.runs} time{l.runs === 1 ? '' : 's'}
-                {l.reversed ? `, reversed by a person within 24 h ${l.reversed} time${l.reversed === 1 ? '' : 's'} (handed back as exceptions)` : ''}
+                {l.reversed ? `, possible human corrections within 24 h: ${l.reversed} (a person set the field back after the rule ran)` : ''}
               </Text>
             ))}
             {weekly.newChores.length > 0 && <Muted>New chores found: {weekly.newChores.map((n) => n.sentence).join('; ')}</Muted>}

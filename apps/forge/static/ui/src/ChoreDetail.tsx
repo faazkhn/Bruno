@@ -77,7 +77,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
         <Stack space="space.200">
           <Heading size="small">Proof</Heading>
           <Text>
-            Tested on {day(p.range.from)} – {day(p.range.to)}, a period not used for learning. The rule would have acted {p.tp + p.fp} times and matched your team on{' '}
+            Tested on {day(p.range.from)} – {day(p.range.to)}, a period not used for learning or for choosing exclusions. The rule would have acted {p.tp + p.fp} times and agreed with your team on{' '}
             <NumberLink onClick={() => show(0)} label="Show matches">{p.tp}</NumberLink> of them.
           </Text>
           <AgreementBar
@@ -88,6 +88,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
               { key: 'inc', label: 'Inconclusive', value: p.inconclusive, color: token('color.background.neutral.bold'), onClick: () => show(3) },
             ]}
           />
+          <Muted>Agreement with what your team did — not proof the team was always right.</Muted>
           <Inline space="space.300" shouldWrap>
             <span title="Of the times the rule would act, how often people did the same"><Text>Precision {pct(p.precision)}</Text></span>
             <span title="Of the times people did it, how often the rule would have done it"><Text>Recall {pct(p.recall)}</Text></span>
@@ -99,7 +100,8 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
       {c.exceptions && c.exceptions.groups.length > 0 && (
         <Card>
           <Stack space="space.150">
-            <Heading size="small">Exceptions</Heading>
+            <Heading size="small">Exceptions (learning period)</Heading>
+            <Muted>Found on {c.exceptions.period ? `${day(c.exceptions.period.from)} – ${day(c.exceptions.period.to)}` : 'the learning period'} only, so the holdout test above stays unbiased.</Muted>
             {c.exceptions.groups.map((g, i) => (
               <Text key={i}>
                 <NumberLink onClick={() => show(g.outcome === 'FP' ? 1 : 2, g.caseKeys)} label={`Show these ${g.differences} cases`}>{g.differences} of {g.ofDifferences}</NumberLink>{' '}
