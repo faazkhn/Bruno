@@ -16,11 +16,10 @@ const LABELS: Record<string, string> = {
   fixVersions: 'Fix version', resolution: 'Resolution',
 };
 
-export function sentence(rule: { trigger: Trigger; clauses: Expr[]; action: Action }, names: Names): string {
+function speaker(names: Names) {
   const f = (field: string) => names.fields?.[field] ?? LABELS[field] ?? field;
   const v = (field: string, id: string) => names.values?.[field]?.[id] ?? id;
   const or = (xs: string[]) => xs.join(' or ');
-
   const clause = (e: Expr, neg = false): string => {
     switch (e.op) {
       case 'not': return clause(e.arg, !neg);
@@ -50,6 +49,14 @@ export function sentence(rule: { trigger: Trigger; clauses: Expr[]; action: Acti
     }
   };
 
+  return { f, v, clause };
+}
+
+/** One condition in plain words, e.g. 'Organization is Initech'. */
+export const describeClause = (e: Expr, names: Names) => speaker(names).clause(e);
+
+export function sentence(rule: { trigger: Trigger; clauses: Expr[]; action: Action }, names: Names): string {
+  const { f, v, clause } = speaker(names);
   const t = rule.trigger;
   const when =
     t.type === 'created' ? 'When a work item is created'

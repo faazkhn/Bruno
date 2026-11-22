@@ -1,0 +1,172 @@
+modules:
+  jira:projectPage:
+    - key: autopilot-page
+      title: Autopilot
+      resource: ui
+      resolver:
+        function: resolver
+  jira:issueContext:
+    - key: chore-nudge
+      title: Wind Tunnel
+      label: Wind Tunnel
+      resource: ui
+      resolver:
+        function: resolver
+  jira:adminPage:
+    - key: autopilot-admin
+      title: Wind Tunnel
+      resource: ui
+      resolver:
+        function: resolver
+  trigger:
+    - key: on-issue-events
+      function: on-issue-event
+      events:
+        - avi:jira:created:issue
+        - avi:jira:updated:issue
+        - avi:jira:commented:issue
+  scheduledTrigger:
+    - key: nightly-mine
+      function: nightly
+      interval: day
+    - key: weekly-report
+      function: weekly
+      interval: week
+  consumer:
+    - key: ingest-consumer
+      queue: ingest-queue
+      function: worker
+  rovo:agent:
+    - key: wind-tunnel-agent
+      name: Wind Tunnel
+      description: Finds the repetitive clicks your team does by hand and proves automation rules against what the team actually did.
+      prompt: resource:agent-prompt;prompt.txt
+      conversationStarters:
+        - What do we do most by hand?
+        - Prove the billing chore
+        - How did automation do this week?
+      actions:
+        - list-chores
+        - prove-chore
+        - send-to-admin
+        - replay-rule
+  action:
+    - key: list-chores
+      name: List chores
+      function: action-list-chores
+      actionVerb: GET
+      description: Lists the chores (repeated manual actions) Wind Tunnel found in a project, with times done by hand and how often the proven rule matched the team.
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: Jira project key, for example WT
+        limit:
+          title: Limit
+          type: integer
+          required: false
+          description: How many chores to return (default 10)
+    - key: prove-chore
+      name: Prove chore
+      function: action-prove-chore
+      actionVerb: GET
+      description: Shows the holdout proof for one chore - dates, matches, differences, precision, recall, coverage and any suggested exclusion.
+      inputs:
+        choreId:
+          title: Chore id
+          type: string
+          required: true
+          description: Chore id as returned by list-chores, for example WT/set:requestType:339
+    - key: send-to-admin
+      name: Send chore to admin
+      function: action-send-to-admin
+      actionVerb: CREATE
+      description: Creates a hand-off work item for the Jira admin with the proven rule JSON and proof summary. Only call with confirm=true after the person explicitly confirmed.
+      inputs:
+        choreId:
+          title: Chore id
+          type: string
+          required: true
+          description: Chore id as returned by list-chores
+        version:
+          title: Version
+          type: integer
+          required: false
+          description: Rule version (defaults to the latest)
+        confirm:
+          title: Confirmed
+          type: boolean
+          required: false
+          description: true only after the person confirmed creating the work item
+    - key: replay-rule
+      name: Replay a rule
+      function: action-replay-rule
+      actionVerb: GET
+      description: Replays an existing automation rule (exported JSON) against the project's history and compares it with what people did.
+      inputs:
+        ruleJson:
+          title: Rule JSON
+          type: string
+          required: true
+          description: The rule as exported from Jira Automation
+        projectKey:
+          title: Project key
+          type: string
+          required: true
+          description: Jira project key
+        windowDays:
+          title: Window (days)
+          type: integer
+          required: false
+          description: How many days of history to replay (default 90)
+  rovo:mcp:
+    - key: wind-tunnel-mcp
+      name: Wind Tunnel
+      tools:
+        - list-chores
+        - prove-chore
+        - replay-rule
+  sql:
+    - key: main
+      engine: mysql
+  function:
+    - key: resolver
+      handler: index.resolver
+    - key: on-issue-event
+      handler: index.onIssueEvent
+    - key: nightly
+      handler: index.nightly
+    - key: weekly
+      handler: index.weekly
+    - key: worker
+      handler: index.worker
+      timeoutSeconds: 900
+    - key: action-list-chores
+      handler: index.listChoresAction
+    - key: action-prove-chore
+      handler: index.proveChoreAction
+    - key: action-send-to-admin
+      handler: index.sendToAdminAction
+    - key: action-replay-rule
+      handler: index.replayRuleAction
+resources:
+  - key: ui
+    path: static/ui/build
+  - key: agent-prompt
+    path: prompts
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 512
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/2ad9d0d3-0fa7-4710-9d84-7183729c9265
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - storage:app
+  content:
+    styles:
+      - unsafe-inline

@@ -13,3 +13,5 @@ tools/history-bot/data/state.json
 tools/history-bot/data/site.json
 tools/history-bot/data/*.log
 data/public-jira-slice/
+apps/forge/src/index.js
+apps/forge/static/ui/build/

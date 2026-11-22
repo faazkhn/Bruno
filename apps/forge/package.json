@@ -1,0 +1,18 @@
+{
+  "name": "forge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs && pnpm --filter ui build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@forge/api": "latest",
+    "@forge/events": "latest",
+    "@forge/kvs": "latest",
+    "@forge/resolver": "latest",
+    "@forge/sql": "latest"
+  },
+  "devDependencies": { "@wind-tunnel/engine": "workspace:*", "esbuild": "^0.25.0" }
+}
