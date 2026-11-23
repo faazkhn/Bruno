@@ -4,7 +4,9 @@
 
 Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian (no egress, no external services, no LLM decides anything).
 
-> Jira can suggest automations. Wind Tunnel finds the work your team repeats by hand, then proves a rule on cases it has never seen — before anyone turns it on.
+> Automation rules proven on your team's past tickets, before they go live.
+>
+> Jira can suggest automations. Wind Tunnel finds the work your team repeats by hand, then proves a rule on past tickets it never learned from, before anyone turns it on.
 
 ## What it does
 
@@ -76,4 +78,4 @@ pnpm --filter forge build     # bundles backend (with engine) + Custom UI
 cd apps/forge && forge lint && forge deploy -e development
 ```
 
-Known limits (honest): the rule JSON format is built from Atlassian's documented export shape and is marked *unverified* until checked against a real export (test D live); time-in-status triggers (C5) are not implemented; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.
+Known limits (honest): the rule JSON format is built from Atlassian's documented export shape and is marked *unverified* until checked against a real export (test D live); time-in-status triggers (C5, e.g. SLA or escalation rules) are out of scope: Wind Tunnel proves rules triggered by events (created, commented, status or field changed), not by elapsed time; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.
