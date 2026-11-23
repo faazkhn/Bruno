@@ -18,7 +18,7 @@ Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian 
 6. **Hands off.** Creates a Jira work item for the admin with the evidence, an implementation-ready Automation rule definition (JSON to import — it arrives **disabled** — or recreate by hand) and the steps. Forge apps can't create Automation rules directly, and Wind Tunnel doesn't try; an admin reviews and enables.
 7. **Tracks live results.** Generated rules set an issue property (`windtunnel.run`) when they run; Wind Tunnel reports runs and *possible human corrections* (a person set the field back within 24 h of a signed run) every week.
 8. **Nudges in the ticket.** Right after an agent does a proven chore by hand, the issue panel shows *"You and N teammates did this M times…"* with Open proof / Send to admin / Not a chore.
-9. **Rovo agent + MCP.** Ask *"What do we do most by hand?"*, *"Prove the billing chore"*, *"Send it to our admin"*. Four actions (`list-chores`, `prove-chore`, `send-to-admin`, `replay-rule`); three read-only ones are also exposed through `rovo:mcp`.
+9. **Rovo agent + MCP.** Ask *"What do we do most by hand?"*, *"Prove the billing chore"*, *"Why isn't it validated?"*, *"What if we left out Initech?"*, *"Send it to our admin"*. Five actions (`list-chores`, `prove-chore` with a one-sentence *why not*, `try-exclusion` — a what-if scored on the learning period only, never presented as proof —, `send-to-admin`, `replay-rule`); the four read-only ones are also exposed through `rovo:mcp`.
 
 Privacy: actors are stored as salted hashes; the only identity ever resolved is the viewer's own ("you and 3 teammates"). No per-person statistics or rankings.
 
@@ -29,7 +29,7 @@ Data: stored items are kept for the analysis window + 7 days, then purged nightl
 | Test | Proves | Data | Result | Bar |
 |---|---|---|---|---|
 | A Reconstruction | Past states of an item are rebuilt correctly | 500 public Apache Jira issues (the Public Jira Dataset's source) | **99.90%** (3,056 / 3,059 checks), 3 misses listed | ≥ 99% |
-| B Miner recovery | The miner finds planted chores with the right trigger and conditions | 90 days generated from the published history-bot config (4 agents, VIP exception, 7% noise, bulk edits) | **4 / 4** planted chores recovered. Billing: 70.5% → *not yet*; after the exclusion learned on the learning period: **85.3%, proven** on the untouched holdout. Outage stays *not yet* (68.7%, no qualifying exclusion). | ≥ 90% |
+| B Miner recovery | The miner finds planted chores with the right trigger and conditions | 90 days generated from the published history-bot config (4 agents, VIP exception, 7% noise, bulk edits) | **4 / 4** planted chores recovered. Billing: 70.5% → *not yet*; after the exclusion learned on the learning period: **557 of 653, 85.3% (likely 82–88%), validated** on the untouched holdout. Outage stays *not yet* (68.7%). Customer-reply: 85.0% but likely 82–87%, so *not yet* for an 85% bar (verdicts use the cautious end of the 95% range). | ≥ 90% |
 | C Live execution | Generated rules behave as predicted on a live site | Demo site, rules imported + enabled | *pending — needs rules imported on the site (see docs/HUMAN_TODO.md)* | per-rule table |
 | D Import round-trip | Generated JSON imports without edits | Second project / site | *offline round-trip passes (golden file + parse ↔ generate); live import pending* | 100% |
 
@@ -51,7 +51,9 @@ Reproduce A and B: `pnpm --filter benchmark test-a` and `pnpm --filter benchmark
 - *Replay an existing rule:* admin page → paste a rule exported from Automation → see what it would have done versus what people did.
 - *Grow history:* the history bot (below) runs against your site and plants known chores every 15 minutes.
 
-**Rovo:** open Rovo chat → agent **Wind Tunnel** → "What do we do most by hand in WT?".
+**Rovo:** open Rovo chat → agent **Wind Tunnel** → "What do we do most by hand in WT?" → "Why isn't the outage chore validated?" → "What if we left out Initech?".
+
+**MCP (external agents):** the same four read-only tools (`list-chores`, `prove-chore`, `try-exclusion`, `replay-rule`) are exposed through `rovo:mcp`. An admin enables the app's MCP server for external clients in the site's Rovo/MCP settings, then a client (Cursor, …) connects with OAuth; every call runs as that user, with the same per-item permission checks.
 
 ## How it works
 
