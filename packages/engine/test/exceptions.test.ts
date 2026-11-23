@@ -26,6 +26,13 @@ test('groups "rule would act" differences by one trigger-time fact, ranked by li
   expect(top.caseKeys.length).toBe(top.differences);
 });
 
+test('groups carry item ids parallel to keys (permission checks need ids)', () => {
+  for (const g of ex.groups) {
+    expect(g.caseIds).toHaveLength(g.caseKeys.length);
+    g.caseIds.forEach((id, i) => expect(issues.find((x) => x.id === id)?.key).toBe(g.caseKeys[i]));
+  }
+});
+
 test('suggests NOT <group> only when it explains >= 50% and raises learn-split F1', () => {
   expect(ex.suggestion).toBeDefined();
   expect(toJql(ex.suggestion!.clause)).toBe(`NOT organizations = "${SIM_IDS.organizations.Initech}"`);

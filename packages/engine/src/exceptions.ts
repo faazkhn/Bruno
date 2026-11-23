@@ -22,6 +22,8 @@ export interface ExceptionGroup {
   ofDifferences: number;
   lift: number;
   caseKeys: string[];
+  /** item ids, parallel to caseKeys (permission checks are by id) */
+  caseIds: string[];
 }
 export interface Suggestion { clause: Expr; share: number; lift: number; learnF1Before: number; learnF1After: number }
 
@@ -56,12 +58,12 @@ export function findExceptions(chore: Chore, issues: IssueRecord[], window: Anal
     const diffs = base.filter((x) => x.e.positive === (outcome === 'FN'));
     const isDiff = new Set(diffs);
     if (!diffs.length) continue;
-    const counts = new Map<string, { clause: Expr; d: number; b: number; keys: string[] }>();
+    const counts = new Map<string, { clause: Expr; d: number; b: number; keys: string[]; ids: string[] }>();
     for (const x of base) {
       for (const [k, clause] of x.facts) {
-        const g = counts.get(k) ?? { clause, d: 0, b: 0, keys: [] };
+        const g = counts.get(k) ?? { clause, d: 0, b: 0, keys: [], ids: [] };
         g.b++;
-        if (isDiff.has(x)) { g.d++; g.keys.push(x.e.issue.key); }
+        if (isDiff.has(x)) { g.d++; g.keys.push(x.e.issue.key); g.ids.push(x.e.issue.id); }
         counts.set(k, g);
       }
     }
@@ -71,7 +73,7 @@ export function findExceptions(chore: Chore, issues: IssueRecord[], window: Anal
       .filter((x) => x.lift > 1)
       .sort((a, b) => b.g.d - a.g.d || b.lift - a.lift || a.k.localeCompare(b.k))
       .slice(0, TOP);
-    for (const { g, lift } of ranked) groups.push({ outcome, clause: g.clause, differences: g.d, ofDifferences: diffs.length, lift, caseKeys: g.keys });
+    for (const { g, lift } of ranked) groups.push({ outcome, clause: g.clause, differences: g.d, ofDifferences: diffs.length, lift, caseKeys: g.keys, caseIds: g.ids });
   }
 
   const top = groups.find((g) => g.outcome === 'FP');
