@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { parseJql, wilson, type Chore } from '@wind-tunnel/engine';
-import { choreRef, parseChoreRef, trimChore, nudgeMatches, isReversal, summarise, parseSignature, caseIdsOf, redactCases, retentionCutoff } from '../backend/logic';
+import { choreRef, parseChoreRef, trimChore, nudgeMatches, isReversal, summarise, parseSignature, caseIdsOf, redactCases, retentionCutoff, passport } from '../backend/logic';
 
 const chore = {
   id: 'set:requestType:339', version: 1, action: { kind: 'set', field: 'requestType', value: '339' }, count: 40, items: 40, people: 2, bulkCollapsed: 0,
@@ -96,5 +96,28 @@ describe('logic', () => {
     expect(new Date(retentionCutoff({ windowDays: 90, anchor: 'now' }, now)!).toISOString()).toBe('2026-08-18T00:00:00.000Z');
     // window anchored at the project's last activity: its items are old by design, never purge them
     expect(retentionCutoff({ windowDays: 90, anchor: 'lastActivity' }, now)).toBeNull();
+  });
+
+  describe('automation passport: the evidence an admin reads before enabling', () => {
+    const D = Date.parse('2026-11-01T00:00:00Z');
+    const w = { start: D, cut: D + 20 * 86_400_000, end: D + 30 * 86_400_000 };
+    const base = { ...chore, sentence: 'When created, if summary mentions invoice, set Request type to Billing', proof: { ...chore.proof, range: { from: w.cut, to: w.end } } };
+
+    test('numbers equal the proof; provenance and dates are explicit', () => {
+      const p = passport({ projectKey: 'WT', chore: base, demo: false, window: w, now: D + 31 * 86_400_000 });
+      expect(p).toMatchObject({
+        format: 'wind-tunnel-passport/1', chore: 'WT/set:requestType:339', version: 1, verdict: 'validated',
+        provenance: "this site's own history", learnedOn: { from: '2026-11-01', to: '2026-11-21' }, testedOn: { from: '2026-11-21', to: '2026-12-01' },
+        holdout: { peopleDid: 100, ruleWouldAct: 33, agreed: 30, precision: '90.0%', precisionLikely: '76–97%', recall: '30.0%', coverage: '100.0%', inconclusive: 0 },
+        exclusion: null, generatedAt: '2026-12-02',
+      });
+      expect(p.limitations).toContain('Measures agreement with what the team did, not whether the team was right.');
+    });
+
+    test('simulated history and an applied exclusion are stated, never hidden', () => {
+      const p = passport({ projectKey: 'WT', chore: { ...base, note: 'exclusion chosen after seeing differences' }, demo: true, window: w, now: D });
+      expect(p.provenance).toBe('simulated demo history (not this site)');
+      expect(p.exclusion).toBe('exclusion chosen after seeing differences');
+    });
   });
 });

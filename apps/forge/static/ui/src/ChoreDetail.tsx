@@ -199,7 +199,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
             <ModalHeader><ModalTitle>Send this rule to your admin?</ModalTitle></ModalHeader>
             <ModalBody>
               <Stack space="space.100">
-                <Text>Creates a Jira work item “Automate: {c.sentence}” in {d.settings.adminProjectKey || 'this project'} with the proof summary, the rule JSON and import steps.</Text>
+                <Text>Creates a Jira work item “Automate: {c.sentence}” in {d.settings.adminProjectKey || 'this project'} with a review checklist, the evidence (automation passport) and the rule JSON to import.</Text>
                 <Muted>The imported rule arrives disabled. Nothing else in Jira changes.</Muted>
               </Stack>
             </ModalBody>

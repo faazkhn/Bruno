@@ -2,6 +2,7 @@
 import { asUser, route } from '@forge/api';
 import { toNativeRule, type NativeExport } from '@wind-tunnel/engine';
 import { call } from './jira';
+import { passport, type Passport } from './logic';
 import { choreDetail } from './service';
 import * as db from './store';
 
@@ -21,33 +22,45 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
   const rule = toNativeRule(c, `Wind Tunnel: ${c.sentence}`.slice(0, 255), ctx);
   const s = await db.getSettings(projectKey);
   const targetProject = s.adminProjectKey || projectKey;
-  const fmt = (t: number) => new Date(t).toISOString().slice(0, 10);
-  const p = c.proof;
-  const text = [
-    `Rule: ${c.sentence}`,
-    `Proof (holdout ${fmt(p.range.from)} → ${fmt(p.range.to)}, not used for learning or for choosing exclusions). This measures agreement with what the team did, not whether the team was right: the rule agreed with the team on ${p.tp} of ${p.tp + p.fp} times it would act (precision ${(p.precision * 100).toFixed(1)}%); people did it ${p.tp + p.fn} times, the rule would have caught ${p.tp} (recall ${(p.recall * 100).toFixed(1)}%); coverage ${(p.coverage * 100).toFixed(1)}%.`,
-    c.note ? `Note: ${c.note}.` : '',
-    'Import: Settings → System → Global automation → … → Import rules → choose the attached JSON. Imported rules arrive disabled; review, then enable. When it runs it sets the issue property windtunnel.run so Wind Tunnel can report live results.',
-    'Rule JSON format verification against a real export: pending (see Wind Tunnel docs).',
-  ].filter(Boolean);
+  const pp = passport({ projectKey, chore: c, demo: d.demo, window: d.window ?? { start: c.proof.range.from, cut: c.proof.range.from, end: c.proof.range.to }, now: Date.now() });
+  const h = pp.holdout;
+  const para = (t: string) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] });
+  const heading = (t: string) => ({ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: t }] });
+  const bullets = (xs: string[]) => ({ type: 'bulletList', content: xs.map((t) => ({ type: 'listItem', content: [para(t)] })) });
+  const content = [
+    para(`Rule: ${c.sentence}`),
+    para(`Validated on ${pp.testedOn.from} → ${pp.testedOn.to}, a period not used for learning: it agreed with the team on ${h.agreed} of the ${h.ruleWouldAct} times it would act (${h.precision}, likely ${h.precisionLikely}). People did it ${h.peopleDid} times; the rule would have caught ${h.agreed} (recall ${h.recall}). Coverage ${h.coverage}.`),
+    heading('Review checklist'),
+    bullets([
+      'Trigger and conditions match how the team works today.',
+      'The action sets the right field and value.',
+      'Exceptions listed below are acceptable.',
+      'Import (Settings → System → Global automation → … → Import rules → attached JSON). It arrives disabled; enable it after review.',
+    ]),
+    heading('Automation passport'),
+    bullets([
+      `Evidence from: ${pp.provenance}`,
+      `Learned on ${pp.learnedOn.from} → ${pp.learnedOn.to}; tested on ${pp.testedOn.from} → ${pp.testedOn.to}`,
+      `Holdout: people did it ${h.peopleDid} times; the rule would act ${h.ruleWouldAct} times; agreed ${h.agreed}; inconclusive ${h.inconclusive}`,
+      `Exclusion: ${pp.exclusion ?? 'none'}`,
+      ...pp.limitations.map((l) => `Limit: ${l}`),
+      `Chore ${pp.chore}, version ${pp.version}, generated ${pp.generatedAt}. When the rule runs it sets the issue property windtunnel.run so Wind Tunnel can report live runs and possible human corrections.`,
+    ]),
+    heading('Rule JSON'),
+    { type: 'codeBlock', attrs: { language: 'json' }, content: [{ type: 'text', text: JSON.stringify(rule, null, 2) }] },
+  ];
   const issue = await call(asUser(), route`/rest/api/3/issue`, {
     method: 'POST',
-    body: {
-      fields: {
-        project: { key: targetProject },
-        issuetype: { name: 'Task' },
-        summary: `Automate: ${c.sentence}`.slice(0, 254),
-        description: { type: 'doc', version: 1, content: [...text.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })), { type: 'codeBlock', attrs: { language: 'json' }, content: [{ type: 'text', text: JSON.stringify(rule, null, 2) }] }] },
-      },
-    },
+    body: { fields: { project: { key: targetProject }, issuetype: { name: 'Task' }, summary: `Automate: ${c.sentence}`.slice(0, 254), description: { type: 'doc', version: 1, content } } },
   });
   await attachJson(issue.key, `wind-tunnel-${choreId.replace(/[^a-z0-9]+/gi, '-')}-v${c.version}.json`, rule).catch(() => null); // JSON is also in the description
+  await attachJson(issue.key, `wind-tunnel-passport-${choreId.replace(/[^a-z0-9]+/gi, '-')}-v${c.version}.json`, pp).catch(() => null); // passport is also in the description
   await db.addHandoff(projectKey, choreId, c.version, issue.key);
   await db.setChoreStatus(projectKey, choreId, 'handed_off');
   return { understood, created: true, key: issue.key };
 }
 
-async function attachJson(issueKey: string, filename: string, json: NativeExport) {
+async function attachJson(issueKey: string, filename: string, json: NativeExport | Passport) {
   const form = new FormData();
   form.append('file', new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }), filename);
   const r = await asUser().requestJira(route`/rest/api/3/issue/${issueKey}/attachments`, { method: 'POST', headers: { 'X-Atlassian-Token': 'no-check' }, body: form as unknown as string });

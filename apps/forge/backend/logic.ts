@@ -99,3 +99,33 @@ export function redactCases<T extends StoredChore & CaseGroups>(c: T, allowed: S
 /** Stored data older than this is purged (PRD §18: window + 7 days); null = keep (window anchored at last activity). */
 export const retentionCutoff = (s: { windowDays: number; anchor: string }, now: number): number | null =>
   s.anchor === 'now' ? now - (s.windowDays + 7) * 86_400_000 : null;
+
+const pct1 = (x: number) => `${(x * 100).toFixed(1)}%`;
+const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+/** Automation passport: the evidence behind a hand-off, in one structure (description table + attached JSON). Same numbers as the page. */
+export function passport(i: { projectKey: string; chore: StoredChore & { sentence?: string }; demo: boolean; window: { start: number; cut: number; end: number }; now: number }) {
+  const c = i.chore, p = c.proof, w = wilson(p.tp, p.tp + p.fp);
+  return {
+    format: 'wind-tunnel-passport/1',
+    chore: choreRef(i.projectKey, c.id), version: c.version, rule: c.sentence ?? c.id,
+    verdict: c.verdict === 'proven' ? 'validated' : c.verdict,
+    provenance: i.demo ? 'simulated demo history (not this site)' : "this site's own history",
+    learnedOn: { from: isoDay(i.window.start), to: isoDay(i.window.cut) },
+    testedOn: { from: isoDay(p.range.from), to: isoDay(p.range.to) },
+    holdout: {
+      peopleDid: p.tp + p.fn, ruleWouldAct: p.tp + p.fp, agreed: p.tp,
+      precision: pct1(p.precision), precisionLikely: `${Math.floor(w.low * 100)}–${Math.ceil(w.high * 100)}%`,
+      recall: pct1(p.recall), coverage: pct1(p.coverage), inconclusive: p.inconclusive,
+    },
+    exclusion: c.note ?? null,
+    limitations: [
+      'Measures agreement with what the team did, not whether the team was right.',
+      'Conditions use only facts known when the trigger happened.',
+      'The tested period was not used for learning or for choosing exclusions.',
+      'Time-based rules (time in status, SLAs) are out of scope.',
+    ],
+    generatedAt: isoDay(i.now),
+  };
+}
+export type Passport = ReturnType<typeof passport>;
