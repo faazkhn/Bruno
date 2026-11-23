@@ -24,7 +24,7 @@ const guarded = (fn: (payload: any, context: any, projectKey: string) => Promise
 resolverDef.define('overview', guarded((_p, _c, k) => svc.overview(k)));
 resolverDef.define('start', guarded((_p, _c, k) => svc.startAnalysis(k)));
 resolverDef.define('progress', guarded((_p, _c, k) => db.getProgress(k)));
-resolverDef.define('chore', guarded((p, _c, k) => svc.choreDetail(k, p.choreId)));
+resolverDef.define('chore', guarded((p, _c, k) => svc.choreView(k, p.choreId)));
 resolverDef.define('exclude', guarded((p, _c, k) => svc.applySuggestedExclusion(k, p.choreId)));
 resolverDef.define('setStatus', guarded((p, _c, k) => svc.setStatus(k, p.choreId, p.status === 'dismissed' ? 'dismissed' : 'new')));
 resolverDef.define('sendToAdmin', guarded((p, _c, k) => svc.sendToAdmin(k, p.choreId, p.confirm === true)));
@@ -96,7 +96,7 @@ export async function proveChoreAction(payload: any) {
   if (!ref) return fail(understood, 'I need a chore id like "WT/set:requestType:339" — list the chores first.');
   try {
     await svc.assertCanBrowse(ref.projectKey);
-    const d = await svc.choreDetail(ref.projectKey, ref.choreId);
+    const d = await svc.choreView(ref.projectKey, ref.choreId);
     if (!d) return fail(understood, 'No such chore in that project.');
     const c = d.chore;
     const day = (t: number) => new Date(t).toISOString().slice(0, 10);
@@ -107,6 +107,7 @@ export async function proveChoreAction(payload: any) {
       precision: pct(c.proof.precision), recall: pct(c.proof.recall), coverage: pct(c.proof.coverage), verdict: c.verdict, note: c.note ?? null,
       status: d.status, handoffKey: d.handoff?.handoff_key ?? null,
       topDifferences: c.proof.cases.filter((x) => x.outcome === 'FP' || x.outcome === 'FN').slice(0, 5).map((x) => ({ key: x.key, kind: x.outcome === 'FP' ? 'rule would act where people didn’t' : 'people acted where the rule wouldn’t', reason: x.reason ?? null })),
+      hiddenExamples: c.hiddenCases ? `${c.hiddenCases} example items hidden: you don't have permission to see them` : null,
       suggestedExclusion: c.exceptions?.suggestion ? { text: `Exclude when ${c.exceptions.suggestionText}`, explains: `${pct(c.exceptions.suggestion.share)} of the learning-period times the rule would act where people didn't` } : null,
     };
   } catch (e) {

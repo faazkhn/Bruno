@@ -12,6 +12,7 @@ interface Replay {
   understood: { rule: string; conditions: string[] }; inconclusive: boolean; unsupported?: string[]; reason?: string; error?: string;
   range?: { from: number; to: number }; wouldAct?: number; matchesPeople?: number; ruleOnly?: number; peopleOnly?: number; precision?: number; recall?: number; coverage?: number; sentence?: string;
   examples?: { key: string; outcome: string }[];
+  hiddenExamples?: number;
 }
 
 /** Admin page: per-project settings and "replay an existing rule". */
@@ -114,6 +115,7 @@ function ReplayResult({ r }: { r: Replay }) {
       <Text><strong>{r.sentence}</strong></Text>
       <Text>{day(r.range!.from)} – {day(r.range!.to)}: the rule would have acted {r.wouldAct} times; people did the same {r.matchesPeople} of those times. It would act {r.ruleOnly} times where people didn’t, and people acted {r.peopleOnly} times where it wouldn’t.</Text>
       <Muted>Precision {pct(r.precision!)} · recall {pct(r.recall!)} · coverage {pct(r.coverage!)}</Muted>
+      {!!r.hiddenExamples && <Muted>{r.hiddenExamples} examples hidden: you don’t have permission to see them.</Muted>}
       {r.examples && r.examples.length > 0 && <Muted>Examples: {r.examples.map((e) => `${e.key} (${e.outcome})`).join(', ')}</Muted>}
     </Stack>
   );

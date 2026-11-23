@@ -6,8 +6,8 @@ import {
   actionOf, analyse, applyExclusion, describeClause, findExceptions, fromJira, fromNativeRule, replay, sentence, snapshotBefore, toNativeRule,
   type Chore, type IssueRecord, type NativeExport, type Names,
 } from '@wind-tunnel/engine';
-import { call, canBrowse, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
-import { choreRef, isReversal, nudgeMatches, parseSignature, summarise, trimChore, type ChoreStatus, type StoredChore } from './logic';
+import { browsableIds, call, canBrowse, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
+import { caseIdsOf, choreRef, isReversal, redactCases, retentionCutoff, nudgeMatches, parseSignature, summarise, trimChore, type ChoreStatus, type StoredChore } from './logic';
 import * as db from './store';
 
 const queue = new Queue({ key: 'ingest-queue' });
@@ -171,6 +171,16 @@ export async function choreDetail(projectKey: string, choreId: string) {
   return { demo: await db.isDemo(projectKey), chore: row.chore as Detail, status: row.status, names: await db.getNames(projectKey), window: meta?.window ?? null, settings, handoff, summary: summarise(projectKey, row.chore, (row.chore as Detail).sentence ?? choreId, row.status) };
 }
 
+/** What the viewer may see: simulated items are not Jira items; real ones go through a per-item permission check. */
+const allowedFor = async (projectKey: string, ids: string[]): Promise<Set<string> | 'all'> => ((await db.isDemo(projectKey)) ? 'all' : browsableIds(ids));
+
+/** choreDetail for a person: example items they can't browse are hidden (counts stay). */
+export async function choreView(projectKey: string, choreId: string) {
+  const d = await choreDetail(projectKey, choreId);
+  if (!d) return null;
+  return { ...d, chore: redactCases(d.chore, await allowedFor(projectKey, caseIdsOf(d.chore))) };
+}
+
 // ---------- writes ----------
 
 export async function applySuggestedExclusion(projectKey: string, choreId: string) {
@@ -182,7 +192,7 @@ export async function applySuggestedExclusion(projectKey: string, choreId: strin
   const s = await db.getSettings(projectKey);
   const v2 = applyExclusion(row.chore, sug.clause, issues, meta.window, s);
   await db.putChore(projectKey, detail(v2, issues, meta.window, s, await namesOf(projectKey), (row.chore as Detail).firstSeen), row.status === 'dismissed' ? 'new' : row.status);
-  return choreDetail(projectKey, choreId);
+  return choreView(projectKey, choreId);
 }
 
 export async function setStatus(projectKey: string, choreId: string, status: Extract<ChoreStatus, 'new' | 'dismissed'>) {
@@ -258,12 +268,16 @@ export async function replayRule(projectKey: string, ruleJson: string, windowDay
   const now = Date.now();
   const range = { from: now - (windowDays ?? s.windowDays) * DAY, to: now };
   const p = replay(parsed.clauses, parsed.trigger, parsed.action, issues, range, s.windowHours * 3_600_000);
+  const first = p.cases.slice(0, 20);
+  const allowed = await allowedFor(projectKey, first.map((c) => c.issueId));
+  const shown = first.filter((c) => allowed === 'all' || allowed.has(c.issueId));
   return {
     understood, inconclusive: false, range,
     wouldAct: p.tp + p.fp, matchesPeople: p.tp, ruleOnly: p.fp, peopleOnly: p.fn, inconclusiveCases: p.inconclusive,
     precision: p.precision, recall: p.recall, coverage: p.coverage,
     sentence: sentence({ trigger: parsed.trigger, clauses: parsed.clauses, action: parsed.action }, { values: nm }),
-    examples: p.cases.slice(0, 20).map((c) => ({ key: c.key, outcome: c.outcome, reason: c.reason ?? null })),
+    examples: shown.map((c) => ({ key: c.key, outcome: c.outcome, reason: c.reason ?? null })),
+    hiddenExamples: first.length - shown.length,
   };
 }
 
@@ -347,6 +361,8 @@ export async function weeklyReport(projectKey: string, now = Date.now()) {
 
 /** Events on one item around a moment, with display names and actor kind only (no identities). */
 export async function caseTimeline(projectKey: string, issueId: string, around: number) {
+  const allowed = await allowedFor(projectKey, [issueId]);
+  if (allowed !== 'all' && !allowed.has(issueId)) return null;
   const rec = await db.getIssue(projectKey, issueId);
   if (!rec) return null;
   const nm = await db.getNames(projectKey);
@@ -363,5 +379,10 @@ export async function caseTimeline(projectKey: string, issueId: string, around: 
 }
 
 export async function nightly() {
-  for (const p of await db.projects()) await startAnalysis(p);
+  for (const p of await db.projects()) {
+    // simulated demo history is regenerated, not retained
+    const cutoff = (await db.isDemo(p)) ? null : retentionCutoff(await db.getSettings(p), Date.now());
+    if (cutoff !== null) await db.purgeBefore(p, cutoff);
+    await startAnalysis(p);
+  }
 }

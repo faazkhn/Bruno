@@ -189,3 +189,11 @@ export async function hasher(): Promise<(id: string) => string> {
   const s = salt;
   return (id: string) => createHash('sha256').update(`${s}:${id}`).digest('hex').slice(0, 32);
 }
+
+/** Retention (PRD §18): drop stored items, live runs and nudges older than the cutoff. */
+export async function purgeBefore(projectKey: string, cutoffMs: number) {
+  await migrate();
+  await sql.prepare('DELETE FROM issues WHERE project_key = ? AND updated_ms < ?').bindParams(projectKey, cutoffMs).execute();
+  await sql.prepare('DELETE FROM live_runs WHERE project_key = ? AND run_ms < ?').bindParams(projectKey, cutoffMs).execute();
+  await sql.prepare('DELETE FROM nudges WHERE project_key = ? AND created_ms < ?').bindParams(projectKey, cutoffMs).execute();
+}

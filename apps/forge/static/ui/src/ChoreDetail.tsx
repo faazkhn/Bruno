@@ -152,6 +152,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
                     emptyView={<Muted>{t.empty}</Muted>}
                   />
                 </div>
+                {!!c.hiddenCases && <Muted>{c.hiddenCases} example items hidden: you don’t have permission to see them. The counts above include them.</Muted>}
                 {c.casesTruncated && <Muted>Showing up to 50 example cases of each kind; the counts above include every case.</Muted>}
               </Stack>
             </TabPanel>

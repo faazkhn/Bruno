@@ -81,3 +81,18 @@ export async function canBrowse(projectKey: string): Promise<boolean> {
   const r = await call<any>(asUser(), route`/rest/api/3/mypermissions?projectKey=${projectKey}&permissions=BROWSE_PROJECTS`).catch(() => null);
   return !!r?.permissions?.BROWSE_PROJECTS?.havePermission;
 }
+
+/** Items the current user can browse (issue security included). Fails closed: on any error nothing is browsable. */
+export async function browsableIds(ids: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  const nums = [...new Set(ids)].map(Number).filter(Number.isFinite);
+  try {
+    for (let i = 0; i < nums.length; i += 1000) {
+      const r = await call<any>(asUser(), route`/rest/api/3/permissions/check`, { method: 'POST', body: { projectPermissions: [{ permissions: ['BROWSE_PROJECTS'], issues: nums.slice(i, i + 1000) }] } });
+      for (const p of r?.projectPermissions ?? []) if (p.permission === 'BROWSE_PROJECTS') for (const id of p.issues ?? []) out.add(String(id));
+    }
+  } catch {
+    return new Set();
+  }
+  return out;
+}

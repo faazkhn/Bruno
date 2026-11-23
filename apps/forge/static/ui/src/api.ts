@@ -26,7 +26,7 @@ export interface Case { issueId: string; key: string; outcome: 'TP' | 'FP' | 'FN
 export interface Group { outcome: 'FP' | 'FN'; differences: number; ofDifferences: number; lift: number; caseKeys: string[] }
 export interface ChoreDetail {
   chore: {
-    id: string; version: number; note?: string; sentence?: string; clauseText?: string[]; count: number; people: number; verdict: Verdict; casesTruncated?: boolean;
+    id: string; version: number; note?: string; sentence?: string; clauseText?: string[]; count: number; people: number; verdict: Verdict; casesTruncated?: boolean; hiddenCases?: number;
     trigger: { type: string; value?: string; field?: string }; action: { kind: string; field: string; value: string };
     proof: { range: { from: number; to: number }; tp: number; fp: number; fn: number; tn: number; inconclusive: number; precision: number; recall: number; coverage: number; cases: Case[] };
     learn: { f1: number; precision: number; recall: number; examples: number };

@@ -68,3 +68,30 @@ export function parseSignature(value: unknown, now: number): { choreId: string; 
   const ts = typeof o.ts === 'string' ? Date.parse(o.ts) : NaN;
   return { choreId: o.choreId, version: typeof o.version === 'number' ? o.version : null, runMs: Number.isFinite(ts) ? ts : now };
 }
+
+interface CaseGroups { exceptions?: { groups: { caseKeys: string[]; caseIds?: string[] }[] } }
+
+/** Item ids a chore's stored examples point at (proof cases + exception groups). */
+export function caseIdsOf(c: StoredChore & CaseGroups): string[] {
+  return [...new Set([...c.proof.cases.map((x) => x.issueId), ...(c.exceptions?.groups ?? []).flatMap((g) => g.caseIds ?? [])])];
+}
+
+/**
+ * Hide example items the viewer can't browse ('all' = simulated history, not Jira items). Counts stay complete.
+ * Groups stored before caseIds existed can't be checked, so their keys are hidden (fail closed).
+ */
+export function redactCases<T extends StoredChore & CaseGroups>(c: T, allowed: Set<string> | 'all'): T & { hiddenCases: number } {
+  if (allowed === 'all') return { ...c, hiddenCases: 0 };
+  const hidden = new Set<string>();
+  const ok = (id: string) => allowed.has(id) || (hidden.add(id), false);
+  const cases = c.proof.cases.filter((x) => ok(x.issueId));
+  const groups = c.exceptions?.groups.map((g) => {
+    if (!g.caseIds) { g.caseKeys.forEach((k) => hidden.add(`key:${k}`)); return { ...g, caseKeys: [] }; }
+    return { ...g, caseKeys: g.caseKeys.filter((_, i) => ok(g.caseIds![i]!)), caseIds: g.caseIds.filter((id) => allowed.has(id)) };
+  });
+  return { ...c, proof: { ...c.proof, cases }, ...(c.exceptions ? { exceptions: { ...c.exceptions, groups } } : {}), hiddenCases: hidden.size };
+}
+
+/** Stored data older than this is purged (PRD §18: window + 7 days); null = keep (window anchored at last activity). */
+export const retentionCutoff = (s: { windowDays: number; anchor: string }, now: number): number | null =>
+  s.anchor === 'now' ? now - (s.windowDays + 7) * 86_400_000 : null;

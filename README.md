@@ -22,6 +22,8 @@ Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian 
 
 Privacy: actors are stored as salted hashes; the only identity ever resolved is the viewer's own ("you and 3 teammates"). No per-person statistics or rankings.
 
+Data: stored items are kept for the analysis window + 7 days, then purged nightly (simulated demo history is regenerated instead). Every example item, snapshot and timeline is shown only after a per-item permission check as the viewer (issue security included); counts stay complete. On uninstall, Forge deletes the app's storage (SQL + KVS): Atlassian keeps it soft-deleted for 28 days for recovery requests, then it is gone ([Forge storage docs](https://developer.atlassian.com/platform/forge/runtime-reference/storage-api/)).
+
 ## Accuracy (real runs, misses included — details in [docs/accuracy.md](docs/accuracy.md))
 
 | Test | Proves | Data | Result | Bar |
