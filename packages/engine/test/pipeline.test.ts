@@ -84,6 +84,8 @@ describe('risk: precision first, and knowing when not to automate', () => {
     const at = (tp: number, fp: number) => ({ tp, fp, fn: 10, tn: 0, inconclusive: 0, precision: tp / (tp + fp), recall: 0.5, coverage: 1 }) as never;
     expect(verdictOf(at(17, 3), DEFAULT_SETTINGS, 'low')).toBe('weak'); // 85%, but likely 64–95%
     expect(verdictOf(at(557, 96), DEFAULT_SETTINGS, 'low')).toBe('proven'); // 85.3%, likely 82–88%
+    // chores stored before risk existed: an unknown risk never validates (fail closed)
+    expect(verdictOf(at(557, 0), DEFAULT_SETTINGS, undefined as never)).toBe('weak');
   });
 
   test('the billing story: v1 is weak because of the VIP exception; the learned exclusion makes it proven', () => {

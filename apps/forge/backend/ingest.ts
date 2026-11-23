@@ -1,7 +1,7 @@
 /** Pipelines 1–3: ingest history (or simulated demo history), then mine and prove chores. Runs on the async queue. */
 import { asApp, route } from '@forge/api';
 import { Queue } from '@forge/events';
-import { BOT_CONFIG, SIM_IDS, simulateHistory, analyse, describeClause, findExceptions, fromJira, sentence, type Chore, type IssueRecord, type Names } from '@wind-tunnel/engine';
+import { BOT_CONFIG, SIM_IDS, simulateHistory, analyse, riskOf, verdictOf, describeClause, findExceptions, fromJira, sentence, type Chore, type IssueRecord, type Names } from '@wind-tunnel/engine';
 import { call, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
 import { trimChore } from './logic';
 import type { Detail } from './service';
@@ -113,7 +113,13 @@ async function runAnalysis(projectKey: string) {
   for (const c of result.chores) {
     const old = existing.get(c.id);
     // chores a person already acted on keep their version and status; only fresh ones are replaced
-    if (old && old.status !== 'new') continue;
+    if (old && old.status !== 'new') {
+      // keep the version a person acted on, but judge its stored proof by today's verdict rule
+      const risk = old.chore.risk ?? riskOf(old.chore.action, s); // chores stored before risk existed
+      const v = verdictOf(old.chore.proof, s, risk);
+      if (v !== old.chore.verdict || risk !== old.chore.risk) await db.putChore(projectKey, { ...old.chore, risk, verdict: v }, old.status);
+      continue;
+    }
     await db.putChore(projectKey, detail(c, issues, result.window, s, nm, (old?.chore as Detail | undefined)?.firstSeen), 'new');
   }
   await db.deleteChoresExcept(projectKey, result.chores.map((c) => c.id));

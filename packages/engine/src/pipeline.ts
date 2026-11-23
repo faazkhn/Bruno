@@ -55,7 +55,7 @@ export const verdictOf = (p: Pick<Proof, 'tp' | 'fp' | 'fn' | 'coverage'>, s: Se
   risk === 'high' ? 'needs-judgment'
     : p.tp + p.fn < s.minHoldoutPositives ? 'too-few'
       : p.coverage < s.minCoverage ? 'low-coverage'
-        : wilson(p.tp, p.tp + p.fp).low < s.minPrecisionByRisk[risk] ? 'weak' : 'proven';
+        : !(wilson(p.tp, p.tp + p.fp).low >= s.minPrecisionByRisk[risk]) ? 'weak' : 'proven'; // written so an unknown bar fails closed
 
 export const splitOf = (w: Analysis['window']) => ({ learn: { from: w.start, to: w.cut }, holdout: { from: w.cut, to: w.end } });
 
