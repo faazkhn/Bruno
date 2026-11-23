@@ -135,7 +135,7 @@ export function whyNot(c: Chore, s: Pick<Settings, 'minPrecisionByRisk' | 'minHo
   const p = c.proof;
   switch (c.verdict) {
     case 'proven': return null;
-    case 'needs-judgment': return 'This action closes or resolves work, which needs human judgment: Wind Tunnel never recommends automating it.';
+    case 'needs-judgment': return 'This action closes or resolves work, which needs human judgment: Beppe never recommends automating it.';
     case 'too-few': return `Only ${p.tp + p.fn} holdout cases where people did this; at least ${s.minHoldoutPositives} are needed before anything is validated.`;
     case 'low-coverage': return `Only ${pct1(p.coverage)} of holdout cases could be modelled; at least ${pct1(s.minCoverage)} is needed. Unknown is never treated as safe.`;
     case 'weak': {

@@ -6,7 +6,7 @@ import TextArea from '@atlaskit/textarea';
 import Textfield from '@atlaskit/textfield';
 import { useEffect, useState } from 'react';
 import { call, type Settings } from './api';
-import { Card, day, Muted, pct } from './ui';
+import { Card, day, Muted, pct, Brand } from './ui';
 
 interface Replay {
   understood: { rule: string; conditions: string[] }; inconclusive: boolean; unsupported?: string[]; reason?: string; error?: string;
@@ -51,7 +51,7 @@ export function Admin() {
 
   return (
     <Stack space="space.300">
-      <Heading size="large">Wind Tunnel</Heading>
+      <Brand tagline="Settings and rule replay" />
       <Inline space="space.100" alignBlock="end">
         <Stack space="space.050">
           <label htmlFor="pk"><Text weight="medium">Project key</Text></label>
@@ -83,7 +83,7 @@ export function Admin() {
       <Card>
         <Stack space="space.150">
           <Heading size="small">Replay an existing rule</Heading>
-          <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Wind Tunnel shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
+          <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Beppe shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
           <label htmlFor="rule"><Text weight="medium">Rule JSON</Text></label>
           <TextArea id="rule" value={json} onChange={(e) => setJson(e.target.value)} minimumRows={6} resize="vertical" />
           <Inline><Button onClick={run} isDisabled={!json.trim() || !projectKey} isLoading={replaying}>Replay</Button></Inline>

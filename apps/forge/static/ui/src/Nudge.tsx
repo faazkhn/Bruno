@@ -19,7 +19,7 @@ export function NudgePanel() {
 
   useEffect(() => { void call<Nudge | null>('nudge').then(setN).catch(() => setN(null)); }, []);
   if (n === undefined) return <Spinner size="small" label="Checking for chores" />;
-  if (n === null) return <Muted>Nothing to suggest on this item. Wind Tunnel speaks up here only right after you do a chore by hand that it has proven a rule for.</Muted>;
+  if (n === null) return <Muted>Nothing to suggest on this item. Beppe speaks up here only right after you do a chore by hand that it has proven a rule for.</Muted>;
   const c = n.chore;
   const answer = async (a: 'seen' | 'not-a-chore') => { await call('answerNudge', { choreId: c.id, answer: a }); setN(null); };
   const send = async () => {
@@ -45,8 +45,8 @@ export function NudgePanel() {
           <Muted>Recall {pct(c.recall)} · coverage {pct(c.coverage)}. Full proof and every case: project sidebar → Autopilot.</Muted>
         </Stack>
       )}
-      <Button appearance="subtle" spacing="compact" onClick={() => rovo.open({ type: 'forge', agentKey: 'wind-tunnel-agent', agentName: 'Wind Tunnel', prompt: `Prove the chore ${c.ref}` }).catch(() => setMsg('Rovo isn’t available on this site.'))}>
-        Ask Wind Tunnel
+      <Button appearance="subtle" spacing="compact" onClick={() => rovo.open({ type: 'forge', agentKey: 'wind-tunnel-agent', agentName: 'Beppe', prompt: `Prove the chore ${c.ref}` }).catch(() => setMsg('Rovo isn’t available on this site.'))}>
+        Ask Beppe
       </Button>
       <ModalTransition>
         {confirming && (

@@ -7,7 +7,7 @@ import SectionMessage from '@atlaskit/section-message';
 import Spinner from '@atlaskit/spinner';
 import { useCallback, useEffect, useState } from 'react';
 import { call, type Overview, type Progress, type Status } from './api';
-import { Card, day, Muted, NumberLink, pct, StatusChip, VerdictChip, likely } from './ui';
+import { Card, day, Muted, NumberLink, pct, StatusChip, VerdictChip, likely, Brand } from './ui';
 
 const PHASES: { id: Progress['phase']; label: string }[] = [
   { id: 'listing', label: 'Listing items' },
@@ -59,7 +59,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
     setData((d) => (d ? { ...d, progress: p } : d));
   };
 
-  if (error) return <SectionMessage appearance="error" title="Wind Tunnel couldn’t load">{error}</SectionMessage>;
+  if (error) return <SectionMessage appearance="error" title="Beppe couldn’t load">{error}</SectionMessage>;
   if (!data) return <Spinner label="Loading chores" />;
 
   const { progress, meta, settings } = data;
@@ -69,7 +69,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
   return (
     <Stack space="space.300">
       <Inline spread="space-between" alignBlock="center" shouldWrap>
-        <Muted>Chores your team does by hand, and rules proven against what the team actually did.</Muted>
+        <Brand tagline="Chores your team does by hand, and rules proven on your team's past tickets." />
         <Button appearance="primary" onClick={start} isDisabled={running(progress)}>
           {meta ? 'Re-analyse history' : `Analyse the last ${settings.windowDays} days`}
         </Button>
@@ -89,7 +89,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
       {data.demo && (
         <SectionMessage appearance="information" title="Simulated demo history">
           <Stack space="space.100">
-            <Text>This project is showing 90 days generated from Wind Tunnel’s published history-bot config (4 agents, planted chores, a VIP exception, noise and bulk edits). Every number below comes from a real run of the engine on that history, but the items are not real Jira work items.</Text>
+            <Text>This project is showing 90 days generated from Beppe’s published history-bot config (4 agents, planted chores, a VIP exception, noise and bulk edits). Every number below comes from a real run of the engine on that history, but the items are not real Jira work items.</Text>
             <Inline><Button spacing="compact" onClick={() => demo(false)}>Switch to this project’s real history</Button></Inline>
           </Stack>
         </SectionMessage>
@@ -107,11 +107,11 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
         <Card>
           <Stack space="space.100">
             <Heading size="small">Nothing analysed yet</Heading>
-            <Text>Wind Tunnel reads this project’s history, finds actions people repeat by hand, and proves a rule for each one on a later period it didn’t learn from.</Text>
+            <Text>Beppe reads this project’s history, finds actions people repeat by hand, and proves a rule for each one on a later period it didn’t learn from.</Text>
             <Muted>A chore needs at least {settings.minCount} repeated actions on {settings.minCount} items by {settings.minPeople} or more people. Nothing in Jira changes until someone sends a rule to an admin.</Muted>
             <Inline space="space.100" alignBlock="center" shouldWrap>
               <Button onClick={() => demo(true)}>Load simulated demo history</Button>
-              <Muted>New project with no history yet? See Wind Tunnel on 90 simulated days, clearly labelled.</Muted>
+              <Muted>New project with no history yet? See Beppe on 90 simulated days, clearly labelled.</Muted>
             </Inline>
           </Stack>
         </Card>

@@ -19,6 +19,7 @@ const TABS: { id: Case['outcome']; label: string; empty: string }[] = [
   { id: 'FN', label: 'People acted', empty: 'People never acted where the rule wouldn’t.' },
   { id: 'inconclusive', label: 'Inconclusive', empty: 'Every case could be modelled.' },
 ];
+const times = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const FIELD: Record<string, string> = { requestType: 'Request type', priority: 'Priority', status: 'Status', components: 'Component', labels: 'Labels', organizations: 'Organization', assignee: 'Assignee', issuetype: 'Work type', summary: 'Summary', resolution: 'Resolution', fixVersions: 'Fix version' };
 
 export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; initialTab?: string; onBack: () => void }) {
@@ -107,8 +108,8 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
               <Text>Watching work items that arrive after {day(d.shadow.from)}. None yet.</Text>
             ) : (
               <Text>
-                Since {day(d.shadow.from)}, {d.shadow.items} new work items arrived{d.shadow.realItemsOnSimulatedRule ? ' on this project (real items)' : ''}. The rule would have acted {d.shadow.wouldAct} times and agreed with your team on {d.shadow.agreed}
-                {d.shadow.peopleOnly ? `; people did it ${d.shadow.peopleOnly} times where it wouldn’t` : ''}.
+                Since {day(d.shadow.from)}, {times(d.shadow.items, 'new work item')} arrived{d.shadow.realItemsOnSimulatedRule ? ' on this project (real items)' : ''}. The rule would have acted {times(d.shadow.wouldAct, 'time')} and agreed with your team on {d.shadow.agreed}
+                {d.shadow.peopleOnly ? `; people did it ${times(d.shadow.peopleOnly, 'time')} where it wouldn’t` : ''}.
               </Text>
             )}
             <Muted>Shadow mode only scores the rule on work it has never seen; nothing in Jira is changed.{d.shadow.realItemsOnSimulatedRule ? ' The rule was learned on the simulated history and is scored here on real work items.' : ''}</Muted>
@@ -309,7 +310,7 @@ function CaseView({ c, detail, nm }: { c: Case; detail: Detail; nm: (f: string, 
             {e.kind === 'created' ? 'created it' : e.kind === 'comment' ? `commented (${e.field})` : `changed ${FIELD[e.field ?? ''] ?? e.field}: ${e.from ?? '—'} → ${e.to ?? '—'}`}
           </Text>
         ))}
-        <Muted>People are never named here: Wind Tunnel only knows whether a person, a customer or automation acted.</Muted>
+        <Muted>People are never named here: Beppe only knows whether a person, a customer or automation acted.</Muted>
       </Stack>
     </Stack>
   );

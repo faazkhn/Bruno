@@ -19,7 +19,7 @@ for (const v1 of result.chores) {
   const sug = findExceptions(v1, issues, result.window, DEFAULT_SETTINGS).suggestion;
   const c = sug ? applyExclusion(v1, sug.clause, issues, result.window, DEFAULT_SETTINGS) : v1;
   if (c.verdict !== 'proven') continue;
-  const name = `Wind Tunnel: ${sentence(c, ctx.names)}`;
+  const name = `Beppe: ${sentence(c, ctx.names)}`;
   writeFileSync(`${OUT}${c.id.replace(/[^a-z0-9]+/gi, '-')}.json`, JSON.stringify(toNativeRule(c, name.slice(0, 255), ctx), null, 2) + '\n');
   console.log(name);
 }

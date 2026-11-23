@@ -19,7 +19,7 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
 
   const ids = (await db.getFieldIds(projectKey)) as { requestType?: string; organizations?: string; projectId?: string; projectTypeKey?: string };
   const ctx = { projectId: ids.projectId ?? '', projectTypeKey: ids.projectTypeKey ?? 'service_desk', fieldIds: { requestType: ids.requestType ?? '', organizations: ids.organizations ?? '' }, names: { values: d.names } };
-  const rule = toNativeRule(c, `Wind Tunnel: ${c.sentence}`.slice(0, 255), ctx);
+  const rule = toNativeRule(c, `Beppe: ${c.sentence}`.slice(0, 255), ctx);
   const s = await db.getSettings(projectKey);
   const targetProject = s.adminProjectKey || projectKey;
   const pp = passport({ projectKey, chore: c, demo: d.demo, window: d.window ?? { start: c.proof.range.from, cut: c.proof.range.from, end: c.proof.range.to }, now: Date.now() });
@@ -44,7 +44,7 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
       `Holdout: people did it ${h.peopleDid} times; the rule would act ${h.ruleWouldAct} times; agreed ${h.agreed}; inconclusive ${h.inconclusive}`,
       `Exclusion: ${pp.exclusion ?? 'none'}`,
       ...pp.limitations.map((l) => `Limit: ${l}`),
-      `Chore ${pp.chore}, version ${pp.version}, generated ${pp.generatedAt}. When the rule runs it sets the issue property windtunnel.run so Wind Tunnel can report live runs and possible human corrections.`,
+      `Chore ${pp.chore}, version ${pp.version}, generated ${pp.generatedAt}. When the rule runs it sets the issue property windtunnel.run so Beppe can report live runs and possible human corrections.`,
     ]),
     heading('Rule JSON'),
     { type: 'codeBlock', attrs: { language: 'json' }, content: [{ type: 'text', text: JSON.stringify(rule, null, 2) }] },
