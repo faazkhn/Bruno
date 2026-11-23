@@ -3,7 +3,7 @@
  * history-bot config (BOT_CONFIG), 90 days, 4 agents, seed 2026. Writes docs/accuracy.md section B.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { analyse, applyExclusion, DEFAULT_SETTINGS, findExceptions, toJql, triggerKey, type Chore } from '@wind-tunnel/engine';
+import { analyse, applyExclusion, DEFAULT_SETTINGS, findExceptions, toJql, triggerKey, wilson, type Chore } from '@wind-tunnel/engine';
 import { BOT_CONFIG, SIM_IDS, simulateHistory } from '@wind-tunnel/engine/sim';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
@@ -29,9 +29,10 @@ const v2 = (c: Chore) => {
 };
 const after = (c: Chore) => {
   const x = v2(c);
-  return x ? `${toJql(x.clauses.at(-1)!)} → ${x.proof.tp} / ${x.proof.tp + x.proof.fp}, ${pct(x.proof.precision)}, ${x.verdict}` : '—';
+  return x ? `${toJql(x.clauses.at(-1)!)} → ${x.proof.tp} / ${x.proof.tp + x.proof.fp}, ${pct(x.proof.precision)} ${likely(x)}, ${x.verdict}` : '—';
 };
-const row = (c: Chore) => `${triggerKey(c.trigger)} | ${jql(c)} | ${c.proof.tp} / ${c.proof.tp + c.proof.fp} | ${pct(c.proof.precision)} | ${pct(c.proof.recall)} | ${pct(c.proof.coverage)} | ${c.verdict} (${c.risk} risk) | ${after(c)}`;
+const likely = (c: Chore) => { const w = wilson(c.proof.tp, c.proof.tp + c.proof.fp); return `(likely ${pct(w.low)}–${pct(w.high)})`; };
+const row = (c: Chore) => `${triggerKey(c.trigger)} | ${jql(c)} | ${c.proof.tp} / ${c.proof.tp + c.proof.fp} | ${pct(c.proof.precision)} ${likely(c)} | ${pct(c.proof.recall)} | ${pct(c.proof.coverage)} | ${c.verdict} (${c.risk} risk) | ${after(c)}`;
 
 let recovered = 0;
 const rows = planted.map((p) => {
@@ -54,7 +55,7 @@ A planted chore counts as recovered when the miner finds the same action, the sa
 |---|---|---|---|---|---|---|---|---|---|
 ${rows.join('\n')}
 
-Precision is measured over every moment the rule could act on the holdout (not only items people changed), and it is agreement with what the team did, not proof the team was right. "Proven" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for medium (priority, assignee, status); closing/resolving work is never recommended. Exceptions are learned on the learning period only, so the re-proof stays an unbiased test. The bot plants ~15% deviations, so even a perfect rule can't reach 100%. Recall counts every human action in the holdout, including ones with no trigger before them.
+Precision is measured over every moment the rule could act on the holdout (not only items people changed), and it is agreement with what the team did, not proof the team was right. "Proven" (shown as *Validated*) needs the cautious end of the 95% interval (Wilson lower bound) to reach 80% for low-risk changes (labels, components, request type) and 85% for medium (priority, assignee, status), so 17 of 20 never counts like 557 of 653; closing/resolving work is never recommended. Exceptions are learned on the learning period only, so the re-proof stays an unbiased test. The bot plants ~15% deviations, so even a perfect rule can't reach 100%. Recall counts every human action in the holdout, including ones with no trigger before them.
 
 Other chores the miner reported that are not in the planted list (e.g. the senior agent's VIP habit is a real pattern in this history), ${extra.length}:
 

@@ -13,7 +13,9 @@ export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak' | 'needs-ju
 export interface Summary {
   ref: string; id: string; version: number; sentence: string; count: number; people: number; matches: number; fires: number;
   differences: number; precision: number; recall: number; coverage: number; verdict: Verdict; status: Status; perMonth: number; handoff?: string | null;
+  precisionLikely: Range; recallLikely: Range;
 }
+export interface Range { low: number; high: number }
 export interface Progress { phase: 'idle' | 'listing' | 'fetching' | 'mining' | 'proving' | 'done' | 'error'; done: number; startedAt: number; finishedAt?: number; error?: string }
 export interface Settings { windowDays: number; minCount: number; minPeople: number; minCoverage: number; anchor: 'now' | 'lastActivity'; adminProjectKey?: string; excludedFields: string[] }
 export interface Window { start: number; cut: number; end: number }

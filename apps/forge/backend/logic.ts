@@ -1,5 +1,5 @@
 /** Pure helpers shared by resolvers, triggers and Rovo actions (no Forge imports, unit-tested). */
-import { evalJql, performs, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
+import { evalJql, performs, wilson, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
 
 export type ChoreStatus = 'new' | 'dismissed' | 'proven' | 'handed_off' | 'live';
 export interface StoredChore extends Chore { casesTruncated?: boolean }
@@ -35,6 +35,9 @@ export interface ChoreSummary {
   verdict: Chore['verdict'];
   status: ChoreStatus;
   perMonth: number;
+  /** 95% Wilson intervals: the honest range behind precision and recall */
+  precisionLikely: { low: number; high: number };
+  recallLikely: { low: number; high: number };
 }
 
 export function summarise(projectKey: string, c: Chore, sentence: string, status: ChoreStatus): ChoreSummary {
@@ -42,6 +45,7 @@ export function summarise(projectKey: string, c: Chore, sentence: string, status
     ref: choreRef(projectKey, c.id), id: c.id, version: c.version, sentence, risk: c.risk, count: c.count, people: c.people,
     matches: c.proof.tp, fires: c.proof.tp + c.proof.fp, differences: c.proof.fp + c.proof.fn,
     precision: c.proof.precision, recall: c.proof.recall, coverage: c.proof.coverage, verdict: c.verdict, status, perMonth: c.perMonth,
+    precisionLikely: wilson(c.proof.tp, c.proof.tp + c.proof.fp), recallLikely: wilson(c.proof.tp, c.proof.tp + c.proof.fn),
   };
 }
 

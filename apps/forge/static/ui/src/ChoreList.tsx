@@ -7,7 +7,7 @@ import SectionMessage from '@atlaskit/section-message';
 import Spinner from '@atlaskit/spinner';
 import { useCallback, useEffect, useState } from 'react';
 import { call, type Overview, type Progress, type Status } from './api';
-import { Card, day, Muted, NumberLink, pct, StatusChip, VerdictChip } from './ui';
+import { Card, day, Muted, NumberLink, pct, StatusChip, VerdictChip, likely } from './ui';
 
 const PHASES: { id: Progress['phase']; label: string }[] = [
   { id: 'listing', label: 'Listing items' },
@@ -158,7 +158,7 @@ export function ChoreList({ onOpen }: { onOpen: (choreId: string, tab?: string) 
                     { key: 'count', content: c.count },
                     { key: 'people', content: c.people },
                     { key: 'matches', content: <span style={{ whiteSpace: 'nowrap' }}><NumberLink onClick={() => onOpen(c.id, 'TP')} label={`Show the ${c.matches} matching cases`}>{c.matches} of {c.fires}</NumberLink></span> },
-                    { key: 'verdict', content: <span style={{ whiteSpace: 'nowrap', display: 'inline-flex', gap: 6, alignItems: 'center' }}><VerdictChip verdict={c.verdict} /><Text size="small" color="color.text.subtle">{pct(c.precision)}</Text></span> },
+                    { key: 'verdict', content: <span style={{ whiteSpace: 'nowrap', display: 'inline-flex', gap: 6, alignItems: 'center' }}><VerdictChip verdict={c.verdict} /><span title={`${c.matches} of ${c.fires} · ${likely(c.precisionLikely)}`}><Text size="small" color="color.text.subtle">{pct(c.precision)}</Text></span></span> },
                     { key: 'status', content: <StatusChip status={c.status} /> },
                   ],
                 }))}

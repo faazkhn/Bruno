@@ -6,12 +6,14 @@ import type { ReactNode } from 'react';
 import type { Status, Verdict } from './api';
 
 export const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+/** "likely 82–88%": the 95% range, whole percents (finer would claim more than the sample knows) */
+export const likely = (r: { low: number; high: number }) => `likely ${Math.floor(r.low * 100)}–${Math.ceil(r.high * 100)}%`;
 export const day = (t: number) => new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 export const when = (t: number) => new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 const STATUS: Record<Status, { text: string; appearance: 'new' | 'default' | 'inprogress' | 'success' }> = {
   new: { text: 'New', appearance: 'new' },
-  proven: { text: 'Proven', appearance: 'success' },
+  proven: { text: 'Validated', appearance: 'success' },
   dismissed: { text: 'Not a chore', appearance: 'default' },
   handed_off: { text: 'Handed off', appearance: 'inprogress' },
   live: { text: 'Live', appearance: 'success' },
@@ -19,8 +21,8 @@ const STATUS: Record<Status, { text: string; appearance: 'new' | 'default' | 'in
 export const StatusChip = ({ status }: { status: Status }) => <Lozenge appearance={STATUS[status].appearance}>{STATUS[status].text}</Lozenge>;
 
 const VERDICT: Record<Verdict, { text: string; appearance: 'success' | 'moved' | 'default' | 'removed'; hint: string }> = {
-  proven: { text: 'Proven', appearance: 'success', hint: 'Matched the team on the holdout period with enough cases and coverage.' },
-  weak: { text: 'Not yet', appearance: 'moved', hint: 'On the holdout period the rule agreed with the team less often than the bar for this kind of change (80% for labels/categories, 85% for priority, assignee and status). Look at the exceptions.' },
+  proven: { text: 'Validated', appearance: 'success', hint: 'On the holdout period, even the cautious end of the likely range (95%) reaches the bar for this kind of change, with enough cases and coverage.' },
+  weak: { text: 'Not yet', appearance: 'moved', hint: 'On the holdout period the rule agreed with the team less often than the bar for this kind of change (80% for labels/categories, 85% for priority, assignee and status), or too few cases make the likely range dip under it. Look at the exceptions.' },
   'too-few': { text: 'Too few cases', appearance: 'default', hint: 'Fewer than 10 holdout cases where people did this — not enough to prove anything yet.' },
   'needs-judgment': { text: 'Needs judgment', appearance: 'default', hint: 'This action closes or resolves work. Wind Tunnel never recommends automating it, however often people do it.' },
   'low-coverage': { text: 'Inconclusive', appearance: 'removed', hint: 'Too many cases could not be modelled (coverage under 80%) — never treated as safe.' },

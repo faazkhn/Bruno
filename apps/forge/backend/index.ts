@@ -70,6 +70,9 @@ export async function worker(event: any) {
 const fail = (understood: object, message: string) => ({ understood, error: message });
 /** Rovo quotes numbers exactly: give it the same rounding the page shows. */
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+const likely = (r: { low: number; high: number }) => `${pct(r.low)}–${pct(r.high)}`;
+/** people read "Validated" (decision Q2); the stored id stays 'proven' */
+const verdictLabel = (v: string) => (v === 'proven' ? 'validated' : v);
 
 export async function listChoresAction(payload: any) {
   const projectKey = String(payload?.projectKey ?? '').trim().toUpperCase();
@@ -83,7 +86,7 @@ export async function listChoresAction(payload: any) {
     return {
       understood,
       window: o.meta?.window ?? null,
-      chores: o.chores.slice(0, limit).map((c) => ({ choreId: c.ref, sentence: c.sentence, timesByHand: c.count, people: c.people, agreed: c.matches, wouldAct: c.fires, precision: pct(c.precision), verdict: c.verdict, status: c.status, handoffKey: c.handoff ?? null })),
+      chores: o.chores.slice(0, limit).map((c) => ({ choreId: c.ref, sentence: c.sentence, timesByHand: c.count, people: c.people, agreed: c.matches, wouldAct: c.fires, precision: pct(c.precision), precisionLikely: likely(c.precisionLikely), verdict: verdictLabel(c.verdict), status: c.status, handoffKey: c.handoff ?? null })),
     };
   } catch (e) {
     return fail(understood, String(e));
@@ -104,7 +107,7 @@ export async function proveChoreAction(payload: any) {
       understood: { ...understood, sentence: c.sentence, version: c.version },
       holdout: { from: day(c.proof.range.from), to: day(c.proof.range.to), note: 'not used for learning' },
       agreed: c.proof.tp, wouldAct: c.proof.tp + c.proof.fp, peopleDid: c.proof.tp + c.proof.fn,
-      precision: pct(c.proof.precision), recall: pct(c.proof.recall), coverage: pct(c.proof.coverage), verdict: c.verdict, note: c.note ?? null,
+      precision: pct(c.proof.precision), precisionLikely: likely(d.summary.precisionLikely), recall: pct(c.proof.recall), coverage: pct(c.proof.coverage), verdict: verdictLabel(c.verdict), note: c.note ?? null,
       status: d.status, handoffKey: d.handoff?.handoff_key ?? null,
       topDifferences: c.proof.cases.filter((x) => x.outcome === 'FP' || x.outcome === 'FN').slice(0, 5).map((x) => ({ key: x.key, kind: x.outcome === 'FP' ? 'rule would act where people didn’t' : 'people acted where the rule wouldn’t', reason: x.reason ?? null })),
       hiddenExamples: c.hiddenCases ? `${c.hiddenCases} example items hidden: you don't have permission to see them` : null,

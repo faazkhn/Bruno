@@ -9,9 +9,9 @@ import Spinner from '@atlaskit/spinner';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
 import { token } from '@atlaskit/tokens';
 import { router } from '@forge/bridge';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { call, type Case, type ChoreDetail as Detail } from './api';
-import { AgreementBar, Card, day, Muted, NumberLink, pct, StatusChip, VerdictChip, when } from './ui';
+import { AgreementBar, Card, day, likely, Muted, NumberLink, pct, StatusChip, VerdictChip, when } from './ui';
 
 const TABS: { id: Case['outcome']; label: string; empty: string }[] = [
   { id: 'TP', label: 'Matches', empty: 'No matches on the holdout period.' },
@@ -43,7 +43,7 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
   const show = (i: number) => setTab(i);
   // the case view renders inline: fixed drawers get clipped inside Jira's auto-sized iframe
   const openCase = (x: Case) => { setOpen(x); setTimeout(() => caseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };
-  const blocked = c.verdict !== 'proven' ? 'Hand-off needs a proven rule.' : p.coverage < d.settings.minCoverage ? `Hand-off needs coverage ≥ ${pct(d.settings.minCoverage)}.` : null;
+  const blocked = c.verdict !== 'proven' ? 'Hand-off needs a validated rule.' : p.coverage < d.settings.minCoverage ? `Hand-off needs coverage ≥ ${pct(d.settings.minCoverage)}.` : null;
 
   const act = async (name: string, fn: () => Promise<void>) => {
     setBusy(name);
@@ -92,8 +92,8 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
           />
           <Muted>Agreement with what your team did — not proof the team was always right.</Muted>
           <Inline space="space.300" shouldWrap>
-            <span title="Of the times the rule would act, how often people did the same"><Text>Precision {pct(p.precision)}</Text></span>
-            <span title="Of the times people did it, how often the rule would have done it"><Text>Recall {pct(p.recall)}</Text></span>
+            <span title="Of the times the rule would act, how often people did the same. The likely range (95%) shows how sure that is; the verdict uses its cautious end."><Text>Precision {pct(p.precision)} ({p.tp} of {p.tp + p.fp} · {likely(d.summary.precisionLikely)})</Text></span>
+            <span title="Of the times people did it, how often the rule would have done it"><Text>Recall {pct(p.recall)} ({p.tp} of {p.tp + p.fn} · {likely(d.summary.recallLikely)})</Text></span>
             <span title="Share of cases we could model; under 80% blocks hand-off"><Text>Coverage {pct(p.coverage)}</Text></span>
           </Inline>
         </Stack>
@@ -164,11 +164,21 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
         <div ref={caseRef}>
           <Card>
             <Stack space="space.200">
-              <Inline spread="space-between" alignBlock="center">
-                <Heading size="small">Case</Heading>
-                <Button appearance="subtle" onClick={() => setOpen(null)}>Close</Button>
-              </Inline>
-              <CaseView c={open} detail={d} nm={nm} />
+              {(() => {
+                const list = p.cases.filter((x) => x.outcome === open.outcome);
+                const i = list.indexOf(open);
+                return (
+                  <Inline spread="space-between" alignBlock="center" shouldWrap>
+                    <Heading size="small">{`Flight recorder · case ${i + 1} of ${list.length}`}</Heading>
+                    <Inline space="space.100">
+                      <Button appearance="subtle" isDisabled={i <= 0} onClick={() => setOpen(list[i - 1]!)}>Previous</Button>
+                      <Button appearance="subtle" isDisabled={i < 0 || i >= list.length - 1} onClick={() => setOpen(list[i + 1]!)}>Next</Button>
+                      <Button appearance="subtle" onClick={() => setOpen(null)}>Close</Button>
+                    </Inline>
+                  </Inline>
+                );
+              })()}
+              <CaseView key={open.issueId + open.outcome + (open.triggerTs ?? open.actionTs)} c={open} detail={d} nm={nm} />
             </Stack>
           </Card>
         </div>
@@ -207,49 +217,82 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
 
 interface Timeline { key: string; summary: string; events: { ts: number; kind: string; actor: string; field: string | null; from: string | null; to: string | null }[] }
 
+/** What the rule decided and whether it agreed with people, per case outcome (step 3 and 4 of the flight recorder). */
+const STORY: Record<Case['outcome'], { rule: string; people: string; verdict: string; appearance: 'success' | 'removed' | 'default' }> = {
+  TP: { rule: 'Would act: every condition held.', people: 'A person did it by hand.', verdict: 'Agree', appearance: 'success' },
+  FP: { rule: 'Would act: every condition held.', people: 'Nobody did it within the window.', verdict: 'Disagree: rule only', appearance: 'removed' },
+  FN: { rule: 'Would not act.', people: 'A person did it by hand.', verdict: 'Disagree: people only', appearance: 'removed' },
+  inconclusive: { rule: 'Can’t decide: a condition is unknown at that moment.', people: '', verdict: 'No verdict (lowers coverage)', appearance: 'default' },
+};
+
+function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <Stack space="space.100">
+      <Inline space="space.100" alignBlock="center">
+        <Lozenge appearance="new">{`Step ${n}`}</Lozenge>
+        <Heading size="xsmall">{title}</Heading>
+      </Inline>
+      {children}
+    </Stack>
+  );
+}
+
 function CaseView({ c, detail, nm }: { c: Case; detail: Detail; nm: (f: string, v: string | null) => string }) {
-  const [tl, setTl] = useState<Timeline | null>(null);
+  const [tl, setTl] = useState<Timeline | null | 'hidden'>(null);
   const around = c.triggerTs ?? c.actionTs ?? 0;
-  useEffect(() => { void call<Timeline>('timeline', { issueId: c.issueId, around }).then(setTl).catch(() => setTl(null)); }, [c.issueId, around]);
-  const outcome = { TP: 'Matches the team', FP: 'Rule would act where people didn’t', FN: 'People acted where the rule wouldn’t', inconclusive: 'Inconclusive' }[c.outcome];
+  useEffect(() => { void call<Timeline | null>('timeline', { issueId: c.issueId, around }).then((t) => setTl(t ?? 'hidden')).catch(() => setTl('hidden')); }, [c.issueId, around]);
+  const story = STORY[c.outcome];
   const actor = { human_agent: 'A person', customer: 'Customer', automation: 'Automation', app: 'An app' } as Record<string, string>;
+  const trig = detail.chore.trigger;
+  const triggerText = { created: 'The work item was created', customerCommented: 'A customer commented', statusTo: `Status changed to ${nm('status', trig.value ?? null)}`, fieldChanged: `${FIELD[trig.field ?? ''] ?? trig.field} changed` }[trig.type] ?? trig.type;
+  // fields the rule looks at come first in the snapshot
+  const used = new Set(c.clauses.map((cl) => cl.jql.split(/[\s~=!<>(]/)[0]!.replace(/"/g, '')));
+  const rows = Object.entries(c.snapshot).filter(([f]) => f !== 'fixVersions').sort(([a], [b]) => Number(used.has(b)) - Number(used.has(a)));
   return (
     <Stack space="space.300">
-      <Stack space="space.100">
-        <Inline space="space.100" alignBlock="center">
-          <Heading size="medium">{c.key}</Heading>
-          {detail.demo ? <Lozenge>Simulated item</Lozenge> : <Button appearance="subtle" onClick={() => router.open(`/browse/${c.key}`)}>Open in Jira (history tab)</Button>}
-        </Inline>
-        <Text>{outcome}{c.reason === 'no-trigger' ? ' — the trigger never happened shortly before this.' : ''}</Text>
-        <Muted>{c.triggerTs ? `Trigger: ${when(c.triggerTs)}` : 'No trigger'} · {c.actionTs ? `Person acted: ${when(c.actionTs)}` : 'No person acted within the window'}</Muted>
-      </Stack>
-      {c.clauses.length > 0 && (
-        <Stack space="space.100">
-          <Heading size="small">Conditions at that moment</Heading>
-          {c.clauses.map((cl, i) => (
-            <Inline key={i} space="space.100" alignBlock="center">
-              <Lozenge appearance={cl.value === true ? 'success' : cl.value === false ? 'removed' : 'default'}>{cl.value === true ? 'True' : cl.value === false ? 'False' : 'Unknown'}</Lozenge>
-              <Text>{detail.chore.clauseText?.[i] ?? cl.jql}</Text>
-            </Inline>
-          ))}
-        </Stack>
-      )}
-      <Stack space="space.100">
-        <Heading size="small">The item {c.triggerTs ? 'when the trigger happened' : 'just before the person acted'}</Heading>
+      <Inline space="space.100" alignBlock="center" shouldWrap>
+        <Heading size="medium">{c.key}</Heading>
+        {detail.demo ? <Lozenge>Simulated item</Lozenge> : <Button appearance="subtle" onClick={() => router.open(`/browse/${c.key}`)}>Open in Jira (history tab)</Button>}
+        <Lozenge appearance={story.appearance}>{story.verdict}</Lozenge>
+      </Inline>
+
+      <Step n={1} title="What happened">
+        <Text>{c.triggerTs ? `${triggerText} · ${when(c.triggerTs)}` : 'The trigger never happened shortly before this, so the rule had no chance to act.'}</Text>
+      </Step>
+
+      <Step n={2} title="Facts at that moment">
+        {c.clauses.map((cl, i) => (
+          <Inline key={i} space="space.100" alignBlock="center">
+            <Lozenge appearance={cl.value === true ? 'success' : cl.value === false ? 'removed' : 'default'}>{cl.value === true ? 'True' : cl.value === false ? 'False' : 'Unknown'}</Lozenge>
+            <Text>{detail.chore.clauseText?.[i] ?? cl.jql}</Text>
+          </Inline>
+        ))}
         <DynamicTable
           head={{ cells: [{ key: 'f', content: 'Field' }, { key: 'v', content: 'Value' }] }}
-          rows={Object.entries(c.snapshot).filter(([f]) => f !== 'fixVersions').map(([f, v]) => ({ key: f, cells: [{ key: 'f', content: FIELD[f] ?? f }, { key: 'v', content: nm(f, v) }] }))}
+          rows={rows.map(([f, v]) => ({ key: f, cells: [{ key: 'f', content: FIELD[f] ?? f }, { key: 'v', content: nm(f, v) }] }))}
         />
-      </Stack>
+        <Muted>Only what was known {c.triggerTs ? 'when the trigger happened' : 'just before the person acted'}: later changes never count.</Muted>
+      </Step>
+
+      <Step n={3} title="The rule’s decision">
+        <Text>{c.reason === 'no-trigger' ? 'Would not act: no trigger.' : story.rule}</Text>
+        <Muted>Rule: {detail.chore.sentence}</Muted>
+      </Step>
+
+      <Step n={4} title="What people did">
+        <Text>{c.actionTs ? `A person did it by hand · ${when(c.actionTs)}` : story.people || 'Not compared.'}</Text>
+        <Inline><Lozenge appearance={story.appearance}>{story.verdict}</Lozenge></Inline>
+      </Step>
+
       <Stack space="space.100">
-        <Heading size="small">What happened around it</Heading>
-        {!tl ? <Spinner size="small" label="Loading history" /> : tl.events.map((e, i) => (
+        <Heading size="xsmall">Full history around it</Heading>
+        {tl === null ? <Spinner size="small" label="Loading history" /> : tl === 'hidden' ? <Muted>History not available for this item.</Muted> : tl.events.map((e, i) => (
           <Text key={i}>
             {when(e.ts)} · {actor[e.actor] ?? e.actor}{' '}
             {e.kind === 'created' ? 'created it' : e.kind === 'comment' ? `commented (${e.field})` : `changed ${FIELD[e.field ?? ''] ?? e.field}: ${e.from ?? '—'} → ${e.to ?? '—'}`}
           </Text>
         ))}
-        <Muted>People are never named here: Wind Tunnel only knows whether a person, a customer or automation acted. Rule: {detail.chore.sentence}</Muted>
+        <Muted>People are never named here: Wind Tunnel only knows whether a person, a customer or automation acted.</Muted>
       </Stack>
     </Stack>
   );

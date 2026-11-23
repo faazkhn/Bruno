@@ -15,3 +15,4 @@ export * from './exceptions';
 export * from './sentence';
 export * from './rulejson';
 export * from './sim';
+export * from './stats';

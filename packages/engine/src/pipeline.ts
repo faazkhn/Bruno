@@ -1,4 +1,5 @@
 /** The one deep entry point: history in, proven chores out (PRD §11–12). */
+import { wilson } from './stats';
 import { actionOf, actionId, findCandidates, type Action } from './candidates';
 import type { Expr } from './jql';
 import { buildExamples, learnRule } from './learner';
@@ -49,11 +50,12 @@ export interface Analysis {
   unexplained: { id: string; action: Action; count: number; reason: 'no-trigger' | 'no-pattern' }[];
 }
 
-export const verdictOf = (p: Pick<Proof, 'tp' | 'fn' | 'coverage' | 'precision'>, s: Settings, risk: Risk): Verdict =>
+/** Precision bar is met on the interval's lower bound (decision Q1, 2026-11-22): 17 of 20 is not 557 of 653. */
+export const verdictOf = (p: Pick<Proof, 'tp' | 'fp' | 'fn' | 'coverage'>, s: Settings, risk: Risk): Verdict =>
   risk === 'high' ? 'needs-judgment'
     : p.tp + p.fn < s.minHoldoutPositives ? 'too-few'
       : p.coverage < s.minCoverage ? 'low-coverage'
-        : p.precision < s.minPrecisionByRisk[risk] ? 'weak' : 'proven';
+        : wilson(p.tp, p.tp + p.fp).low < s.minPrecisionByRisk[risk] ? 'weak' : 'proven';
 
 export const splitOf = (w: Analysis['window']) => ({ learn: { from: w.start, to: w.cut }, holdout: { from: w.cut, to: w.end } });
 
