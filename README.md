@@ -1,4 +1,4 @@
-<img src="docs/assets/bruno.svg" alt="Bruno, a cartoon uncle with a flat cap and a big moustache" width="120" align="right" />
+<img src="docs/assets/bruno-512.png" alt="Bruno, a smiling cartoon man with curly hair, round glasses and a beard" width="120" align="right" />
 
 # Bruno
 

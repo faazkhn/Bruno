@@ -2,7 +2,7 @@ modules:
   jira:projectPage:
     - key: autopilot-page
       title: Autopilot
-      icon: resource:ui;bruno.svg
+      icon: resource:ui;bruno.png
       resource: ui
       resolver:
         function: resolver
@@ -16,7 +16,7 @@ modules:
   jira:adminPage:
     - key: autopilot-admin
       title: Bruno
-      icon: resource:ui;bruno.svg
+      icon: resource:ui;bruno.png
       resource: ui
       resolver:
         function: resolver
@@ -41,7 +41,7 @@ modules:
   rovo:agent:
     - key: wind-tunnel-agent
       name: Bruno
-      icon: resource:ui;bruno.svg
+      icon: resource:ui;bruno.png
       description: Finds the repetitive clicks your team does by hand and proves automation rules against what the team actually did.
       prompt: resource:agent-prompt;prompt.txt
       conversationStarters:

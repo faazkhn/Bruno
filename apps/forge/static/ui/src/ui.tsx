@@ -80,7 +80,7 @@ export const Muted = ({ children }: { children: ReactNode }) => <Text color="col
 /** Bruno, the mascot: decorative next to his name, so the image itself is hidden from screen readers. */
 export const Brand = ({ tagline }: { tagline?: string }) => (
   <Inline space="space.150" alignBlock="center">
-    <img src="./bruno.svg" width={40} height={40} alt="" style={{ display: 'block' }} />
+    <img src="./bruno.png" width={40} height={40} alt="" style={{ display: 'block' }} />
     <Stack space="space.0">
       <Text weight="bold" size="large">Bruno</Text>
       {tagline && <Text size="small" color="color.text.subtle">{tagline}</Text>}
