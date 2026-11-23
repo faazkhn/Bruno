@@ -310,7 +310,7 @@ function CaseView({ c, detail, nm }: { c: Case; detail: Detail; nm: (f: string, 
             {e.kind === 'created' ? 'created it' : e.kind === 'comment' ? `commented (${e.field})` : `changed ${FIELD[e.field ?? ''] ?? e.field}: ${e.from ?? '—'} → ${e.to ?? '—'}`}
           </Text>
         ))}
-        <Muted>People are never named here: Beppe only knows whether a person, a customer or automation acted.</Muted>
+        <Muted>People are never named here: Bruno only knows whether a person, a customer or automation acted.</Muted>
       </Stack>
     </Stack>
   );

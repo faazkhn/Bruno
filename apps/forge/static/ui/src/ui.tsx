@@ -24,7 +24,7 @@ const VERDICT: Record<Verdict, { text: string; appearance: 'success' | 'moved' |
   proven: { text: 'Validated', appearance: 'success', hint: 'On the holdout period, even the cautious end of the likely range (95%) reaches the bar for this kind of change, with enough cases and coverage.' },
   weak: { text: 'Not yet', appearance: 'moved', hint: 'On the holdout period the rule agreed with the team less often than the bar for this kind of change (80% for labels/categories, 85% for priority, assignee and status), or too few cases make the likely range dip under it. Look at the exceptions.' },
   'too-few': { text: 'Too few cases', appearance: 'default', hint: 'Fewer than 10 holdout cases where people did this — not enough to prove anything yet.' },
-  'needs-judgment': { text: 'Needs judgment', appearance: 'default', hint: 'This action closes or resolves work. Beppe never recommends automating it, however often people do it.' },
+  'needs-judgment': { text: 'Needs judgment', appearance: 'default', hint: 'This action closes or resolves work. Bruno never recommends automating it, however often people do it.' },
   'low-coverage': { text: 'Inconclusive', appearance: 'removed', hint: 'Too many cases could not be modelled (coverage under 80%) — never treated as safe.' },
 };
 export const VerdictChip = ({ verdict }: { verdict: Verdict }) => (
@@ -77,12 +77,12 @@ export function AgreementBar({ segments }: { segments: Segment[] }) {
 
 export const Muted = ({ children }: { children: ReactNode }) => <Text color="color.text.subtle">{children}</Text>;
 
-/** Beppe, the mascot: decorative next to his name, so the image itself is hidden from screen readers. */
+/** Bruno, the mascot: decorative next to his name, so the image itself is hidden from screen readers. */
 export const Brand = ({ tagline }: { tagline?: string }) => (
   <Inline space="space.150" alignBlock="center">
-    <img src="./beppe.svg" width={40} height={40} alt="" style={{ display: 'block' }} />
+    <img src="./bruno.svg" width={40} height={40} alt="" style={{ display: 'block' }} />
     <Stack space="space.0">
-      <Text weight="bold" size="large">Beppe</Text>
+      <Text weight="bold" size="large">Bruno</Text>
       {tagline && <Text size="small" color="color.text.subtle">{tagline}</Text>}
     </Stack>
   </Inline>

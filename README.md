@@ -1,6 +1,6 @@
-<img src="docs/assets/beppe.svg" alt="Beppe, a cartoon uncle with a flat cap and a big moustache" width="120" align="right" />
+<img src="docs/assets/bruno.svg" alt="Bruno, a cartoon uncle with a flat cap and a big moustache" width="120" align="right" />
 
-# Beppe
+# Bruno
 
 **Turns a team's repetitive clicks in Jira and Jira Service Management into automation rules, proven against what the team actually did.**
 
@@ -8,7 +8,7 @@ Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian 
 
 > Automation rules proven on your team's past tickets, before they go live.
 >
-> Jira can suggest automations. Beppe finds the work your team repeats by hand, then proves a rule on past tickets it never learned from, before anyone turns it on.
+> Jira can suggest automations. Bruno finds the work your team repeats by hand, then proves a rule on past tickets it never learned from, before anyone turns it on.
 
 ## What it does
 
@@ -17,8 +17,8 @@ Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian 
 3. **Proves it on a holdout.** Learns on the first two thirds of the window and replays the rule on the last third, which it never saw — at **every** moment the rule could have acted, not just on items people changed: *"agreed with your team on N of the M times it would act"* (precision first), plus where people acted and it wouldn't (recall). Every number clicks through to the real Jira items. It measures agreement with what the team did, not proof the team was right.
 4. **Knows when not to automate.** "Proven" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for priority, assignee and status moves; closing or resolving work is never recommended ("needs judgment"). Anything it can't model is inconclusive, never safe.
 5. **Explains and fixes its own misses.** Groups the rule's mistakes **in the learning period** by one trigger-time fact (*"most are organisation Initech"*) and suggests an exclusion only if it explains ≥ 50% and improves the learning-period score. Accepting creates a new version, re-proved on the untouched holdout — so the improved number is still an unbiased test.
-6. **Hands off.** Creates a Jira work item for the admin with the evidence, an implementation-ready Automation rule definition (JSON to import — it arrives **disabled** — or recreate by hand) and the steps. Forge apps can't create Automation rules directly, and Beppe doesn't try; an admin reviews and enables.
-7. **Tracks live results.** Generated rules set an issue property (`windtunnel.run`) when they run; Beppe reports runs and *possible human corrections* (a person set the field back within 24 h of a signed run) every week.
+6. **Hands off.** Creates a Jira work item for the admin with the evidence, an implementation-ready Automation rule definition (JSON to import — it arrives **disabled** — or recreate by hand) and the steps. Forge apps can't create Automation rules directly, and Bruno doesn't try; an admin reviews and enables.
+7. **Tracks live results.** Generated rules set an issue property (`windtunnel.run`) when they run; Bruno reports runs and *possible human corrections* (a person set the field back within 24 h of a signed run) every week.
 8. **Nudges in the ticket.** Right after an agent does a proven chore by hand, the issue panel shows *"You and N teammates did this M times…"* with Open proof / Send to admin / Not a chore.
 9. **Rovo agent + MCP.** Ask *"What do we do most by hand?"*, *"Prove the billing chore"*, *"Why isn't it validated?"*, *"What if we left out Initech?"*, *"Send it to our admin"*. Five actions (`list-chores`, `prove-chore` with a one-sentence *why not*, `try-exclusion` — a what-if scored on the learning period only, never presented as proof —, `send-to-admin`, `replay-rule`); the four read-only ones are also exposed through `rovo:mcp`.
 
@@ -48,12 +48,12 @@ Reproduce A and B: `pnpm --filter benchmark test-a` and `pnpm --filter benchmark
 4. **Send to admin** → a work item with the rule JSON appears. Import it via Settings → System → Global automation → Import rules (it arrives disabled).
 
 **Project without history?** Two options:
-- *Older or imported projects:* ⚙ Settings → Marketplace apps → **Beppe** (admin page) → enter the project key → tick *End the window at the project's last activity* → save → Analyse.
+- *Older or imported projects:* ⚙ Settings → Marketplace apps → **Bruno** (admin page) → enter the project key → tick *End the window at the project's last activity* → save → Analyse.
 - *New project, no history:* Autopilot → **Load simulated demo history** (90 simulated days, clearly labelled).
 - *Replay an existing rule:* admin page → paste a rule exported from Automation → see what it would have done versus what people did.
 - *Grow history:* the history bot (below) runs against your site and plants known chores every 15 minutes.
 
-**Rovo:** open Rovo chat → agent **Beppe** → "What do we do most by hand in WT?" → "Why isn't the outage chore validated?" → "What if we left out Initech?".
+**Rovo:** open Rovo chat → agent **Bruno** → "What do we do most by hand in WT?" → "Why isn't the outage chore validated?" → "What if we left out Initech?".
 
 **MCP (external agents):** the same four read-only tools (`list-chores`, `prove-chore`, `try-exclusion`, `replay-rule`) are exposed through `rovo:mcp`. An admin enables the app's MCP server for external clients in the site's Rovo/MCP settings, then a client (Cursor, …) connects with OAuth; every call runs as that user, with the same per-item permission checks.
 
@@ -84,4 +84,4 @@ pnpm --filter forge build     # bundles backend (with engine) + Custom UI
 cd apps/forge && forge lint && forge deploy -e development
 ```
 
-Known limits (honest): import is verified for the request-type rule shape (test D); label/component edits and the field-changed/customer-commented triggers are generated in shapes read from real rules but not yet imported; time-in-status triggers (C5, e.g. SLA or escalation rules) are out of scope: Beppe proves rules triggered by events (created, commented, status or field changed), not by elapsed time; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.
+Known limits (honest): import is verified for the request-type rule shape (test D); label/component edits and the field-changed/customer-commented triggers are generated in shapes read from real rules but not yet imported; time-in-status triggers (C5, e.g. SLA or escalation rules) are out of scope: Bruno proves rules triggered by events (created, commented, status or field changed), not by elapsed time; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.

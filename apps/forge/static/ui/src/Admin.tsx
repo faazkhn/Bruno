@@ -83,7 +83,7 @@ export function Admin() {
       <Card>
         <Stack space="space.150">
           <Heading size="small">Replay an existing rule</Heading>
-          <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Beppe shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
+          <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Bruno shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
           <label htmlFor="rule"><Text weight="medium">Rule JSON</Text></label>
           <TextArea id="rule" value={json} onChange={(e) => setJson(e.target.value)} minimumRows={6} resize="vertical" />
           <Inline><Button onClick={run} isDisabled={!json.trim() || !projectKey} isLoading={replaying}>Replay</Button></Inline>

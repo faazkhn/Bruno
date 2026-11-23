@@ -2,21 +2,21 @@ modules:
   jira:projectPage:
     - key: autopilot-page
       title: Autopilot
-      icon: resource:ui;beppe.svg
+      icon: resource:ui;bruno.svg
       resource: ui
       resolver:
         function: resolver
   jira:issueContext:
     - key: chore-nudge
-      title: Beppe
-      label: Beppe
+      title: Bruno
+      label: Bruno
       resource: ui
       resolver:
         function: resolver
   jira:adminPage:
     - key: autopilot-admin
-      title: Beppe
-      icon: resource:ui;beppe.svg
+      title: Bruno
+      icon: resource:ui;bruno.svg
       resource: ui
       resolver:
         function: resolver
@@ -40,8 +40,8 @@ modules:
       function: worker
   rovo:agent:
     - key: wind-tunnel-agent
-      name: Beppe
-      icon: resource:ui;beppe.svg
+      name: Bruno
+      icon: resource:ui;bruno.svg
       description: Finds the repetitive clicks your team does by hand and proves automation rules against what the team actually did.
       prompt: resource:agent-prompt;prompt.txt
       conversationStarters:
@@ -59,7 +59,7 @@ modules:
       name: List chores
       function: action-list-chores
       actionVerb: GET
-      description: Lists the chores (repeated manual actions) Beppe found in a project, with times done by hand and how often the proven rule matched the team.
+      description: Lists the chores (repeated manual actions) Bruno found in a project, with times done by hand and how often the proven rule matched the team.
       inputs:
         projectKey:
           title: Project key
@@ -147,7 +147,7 @@ modules:
           description: The value to exclude, by name (for example Initech) or id
   rovo:mcp:
     - key: wind-tunnel-mcp
-      name: Beppe
+      name: Bruno
       tools:
         - list-chores
         - prove-chore

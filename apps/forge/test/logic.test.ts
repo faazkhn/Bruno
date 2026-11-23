@@ -128,7 +128,7 @@ describe('logic', () => {
       .toBe('Agreed with the team on 17 of 20 times it would act (85.0%, likely 63–95%); a low-risk change needs the cautious end of that range to reach 80%. Suggested exclusion: organization is Initech.');
     expect(whyNot(at('too-few', { tp: 4, fn: 3 }), DEFAULT_SETTINGS)).toBe('Only 7 holdout cases where people did this; at least 10 are needed before anything is validated.');
     expect(whyNot(at('low-coverage', { coverage: 0.6 }), DEFAULT_SETTINGS)).toBe('Only 60.0% of holdout cases could be modelled; at least 80.0% is needed. Unknown is never treated as safe.');
-    expect(whyNot(at('needs-judgment', {}, 'high'), DEFAULT_SETTINGS)).toBe('This action closes or resolves work, which needs human judgment: Beppe never recommends automating it.');
+    expect(whyNot(at('needs-judgment', {}, 'high'), DEFAULT_SETTINGS)).toBe('This action closes or resolves work, which needs human judgment: Bruno never recommends automating it.');
   });
 
   test('what-if input: words people use become a trigger-time clause, or a clear refusal', () => {
