@@ -7,7 +7,7 @@ import {
   type Chore, type IssueRecord, type NativeExport, type Names,
 } from '@wind-tunnel/engine';
 import { call, canBrowse, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
-import { choreRef, isReversal, nudgeMatches, summarise, trimChore, type ChoreStatus, type StoredChore } from './logic';
+import { choreRef, isReversal, nudgeMatches, parseSignature, summarise, trimChore, type ChoreStatus, type StoredChore } from './logic';
 import * as db from './store';
 
 const queue = new Queue({ key: 'ingest-queue' });
@@ -270,7 +270,9 @@ export async function replayRule(projectKey: string, ruleJson: string, windowDay
 // ---------- pipeline 4: live events, nudges, weekly ----------
 
 export async function onIssueChanged(projectKey: string, issueId: string, actorAccountId?: string) {
-  if (!(await db.projects()).includes(projectKey) || (await db.isDemo(projectKey))) return;
+  if (!(await db.projects()).includes(projectKey)) return;
+  // demo mode: the stored history is simulated, so real items are not stored and nobody is nudged; live runs are still tracked
+  const demo = await db.isDemo(projectKey);
   const ids = await db.getFieldIds(projectKey);
   const page = await searchPage(`id = ${issueId}`, ids);
   const raw = page.issues[0];
@@ -278,16 +280,15 @@ export async function onIssueChanged(projectKey: string, issueId: string, actorA
   const logs = await changelogs([raw.id]);
   const hash = await db.hasher();
   const rec = fromJira(raw, logs.get(raw.id) ?? [], commentsOf(raw), { hash, fieldIds: ids });
-  await db.putIssues(projectKey, [rec]);
+  if (!demo) await db.putIssues(projectKey, [rec]);
   const rows = await db.getChores(projectKey);
 
   // signature: our generated rules set windtunnel.run when they run (PRD §12)
   const prop = await call(asApp(), route`/rest/api/3/issue/${issueId}/properties/windtunnel.run`).catch(() => null);
-  const sig = prop?.value && typeof prop.value === 'object' ? prop.value : typeof prop?.value === 'string' ? safeJson(prop.value) : null;
-  if (sig?.choreId) {
-    const runMs = Date.parse(sig.ts) || Date.now();
-    await db.addLiveRun(projectKey, String(sig.choreId), issueId, runMs);
-    if (rows.some((r) => r.chore.id === sig.choreId && r.status !== 'live')) await db.setChoreStatus(projectKey, String(sig.choreId), 'live');
+  const sig = parseSignature(prop?.value, Date.now());
+  if (sig) {
+    await db.addLiveRun(projectKey, sig.choreId, issueId, sig.runMs);
+    if (rows.some((r) => r.chore.id === sig.choreId && r.status !== 'live')) await db.setChoreStatus(projectKey, sig.choreId, 'live');
   }
   // reversals within 24 h of a live run
   for (const run of await db.getLiveRuns(projectKey, Date.now() - 2 * DAY)) {
@@ -296,7 +297,7 @@ export async function onIssueChanged(projectKey: string, issueId: string, actorA
     if (c && rec.events.some((e) => isReversal(c.action, Number(run.run_ms), e))) await db.markReversed(projectKey, run.chore_id, issueId, Number(run.run_ms));
   }
   // nudges: this person just did a proven chore by hand
-  if (!actorAccountId) return;
+  if (!actorAccountId || demo) return;
   const me = hash(actorAccountId);
   const recent = rec.events.filter((e) => e.actorHash === me && e.kind === 'field' && Date.now() - e.ts < 10 * 60_000);
   for (const e of recent) {
@@ -308,8 +309,6 @@ export async function onIssueChanged(projectKey: string, issueId: string, actorA
     }
   }
 }
-
-const safeJson = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
 
 export async function nudgeFor(projectKey: string, issueId: string, accountId: string) {
   const hash = await db.hasher();

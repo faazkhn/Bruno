@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { parseJql, type Chore } from '@wind-tunnel/engine';
-import { choreRef, parseChoreRef, trimChore, nudgeMatches, isReversal, summarise } from '../backend/logic';
+import { choreRef, parseChoreRef, trimChore, nudgeMatches, isReversal, summarise, parseSignature } from '../backend/logic';
 
 const chore = {
   id: 'set:requestType:339', version: 1, action: { kind: 'set', field: 'requestType', value: '339' }, count: 40, items: 40, people: 2, bulkCollapsed: 0,
@@ -45,5 +45,14 @@ describe('logic', () => {
     expect(isReversal(chore.action, 10 * H, ev(12 * H, '339', '320'))).toBe(true);
     expect(isReversal(chore.action, 10 * H, ev(40 * H, '339', '320'))).toBe(false);
     expect(isReversal(chore.action, 10 * H, { ...ev(12 * H, '339', '320'), actorKind: 'automation' })).toBe(false);
+  });
+
+  test('signature: the property our rule sets, as object or JSON string; garbage is ignored', () => {
+    const v = { choreId: 'set:requestType:339', version: 2, ts: '2026-11-23T10:00:00.000+0000' };
+    const want = { choreId: 'set:requestType:339', version: 2, runMs: Date.parse('2026-11-23T10:00:00.000+0000') };
+    expect(parseSignature(v, 5)).toEqual(want);
+    expect(parseSignature(JSON.stringify(v), 5)).toEqual(want);
+    expect(parseSignature({ choreId: 'x', ts: '{{now.jiraDateTime}}' }, 5)).toEqual({ choreId: 'x', version: null, runMs: 5 });
+    for (const bad of [null, undefined, 'garbage', {}, { choreId: '' }, 42]) expect(parseSignature(bad, 5)).toBeNull();
   });
 });

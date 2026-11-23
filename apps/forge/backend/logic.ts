@@ -57,3 +57,14 @@ export function isReversal(a: Action, runTs: number, e: Event): boolean {
   if (e.ts < runTs || e.ts - runTs > 24 * 3_600_000) return false;
   return !performs({ ...e }, a) && (e.from ?? '').split(',').includes(a.value) && !(e.to ?? '').split(',').includes(a.value);
 }
+
+/** The windtunnel.run issue property our generated rules set (object, or JSON string from older rule versions). */
+export function parseSignature(value: unknown, now: number): { choreId: string; version: number | null; runMs: number } | null {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return null; } }
+  if (!v || typeof v !== 'object') return null;
+  const o = v as { choreId?: unknown; version?: unknown; ts?: unknown };
+  if (typeof o.choreId !== 'string' || !o.choreId) return null;
+  const ts = typeof o.ts === 'string' ? Date.parse(o.ts) : NaN;
+  return { choreId: o.choreId, version: typeof o.version === 'number' ? o.version : null, runMs: Number.isFinite(ts) ? ts : now };
+}
