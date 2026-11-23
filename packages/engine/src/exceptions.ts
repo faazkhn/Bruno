@@ -104,3 +104,11 @@ export function applyExclusion(chore: Chore, clause: Expr, issues: IssueRecord[]
     perMonth: (proof.tp / Math.max(1, (window.end - window.cut) / 86_400_000)) * 30,
   };
 }
+
+/** What-if (Rovo, decision Q4): score "NOT clause" on the LEARNING period only. Never touches the holdout; making it real is applyExclusion. */
+export function tryExclusion(chore: Chore, clause: Expr, issues: IssueRecord[], window: Analysis['window'], s: Settings) {
+  const { learn } = splitOf(window);
+  const ex = buildExamples(issues, chore.trigger, chore.action, learn, s.windowHours * 3_600_000);
+  const at = (clauses: Expr[]) => ({ ...scoreClauses(ex, clauses), n: ex.length });
+  return { period: learn, before: at(chore.clauses), after: at([...chore.clauses, { op: 'not', arg: clause }]) };
+}

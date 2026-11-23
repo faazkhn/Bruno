@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { parseJql, wilson, type Chore } from '@wind-tunnel/engine';
-import { choreRef, parseChoreRef, trimChore, nudgeMatches, isReversal, summarise, parseSignature, caseIdsOf, redactCases, retentionCutoff, passport } from '../backend/logic';
+import { DEFAULT_SETTINGS, parseJql, wilson, type Chore } from '@wind-tunnel/engine';
+import { choreRef, parseChoreRef, trimChore, nudgeMatches, isReversal, summarise, parseSignature, caseIdsOf, redactCases, retentionCutoff, passport, whyNot, exclusionClause } from '../backend/logic';
 
 const chore = {
   id: 'set:requestType:339', version: 1, action: { kind: 'set', field: 'requestType', value: '339' }, count: 40, items: 40, people: 2, bulkCollapsed: 0,
@@ -119,5 +119,25 @@ describe('logic', () => {
       expect(p.provenance).toBe('simulated demo history (not this site)');
       expect(p.exclusion).toBe('exclusion chosen after seeing differences');
     });
+  });
+
+  test('why not: one sentence with the real numbers for every verdict short of validated', () => {
+    const at = (verdict: string, proof: object, risk = 'low') => ({ ...chore, verdict, risk, proof: { ...chore.proof, ...proof } }) as never;
+    expect(whyNot(at('proven', {}), DEFAULT_SETTINGS)).toBeNull();
+    expect(whyNot(at('weak', { tp: 17, fp: 3, precision: 0.85 }), DEFAULT_SETTINGS, 'organization is Initech'))
+      .toBe('Agreed with the team on 17 of 20 times it would act (85.0%, likely 63–95%); a low-risk change needs the cautious end of that range to reach 80%. Suggested exclusion: organization is Initech.');
+    expect(whyNot(at('too-few', { tp: 4, fn: 3 }), DEFAULT_SETTINGS)).toBe('Only 7 holdout cases where people did this; at least 10 are needed before anything is validated.');
+    expect(whyNot(at('low-coverage', { coverage: 0.6 }), DEFAULT_SETTINGS)).toBe('Only 60.0% of holdout cases could be modelled; at least 80.0% is needed. Unknown is never treated as safe.');
+    expect(whyNot(at('needs-judgment', {}, 'high'), DEFAULT_SETTINGS)).toBe('This action closes or resolves work, which needs human judgment: Wind Tunnel never recommends automating it.');
+  });
+
+  test('what-if input: words people use become a trigger-time clause, or a clear refusal', () => {
+    const names = { organizations: { '4': 'Initech' }, requestType: { '339': 'Billing' } };
+    expect(exclusionClause('Organization', 'initech', names)).toEqual({ clause: { op: 'eq', field: 'organizations', value: '4' } });
+    expect(exclusionClause('request type', 'Billing', names)).toEqual({ clause: { op: 'eq', field: 'requestType', value: '339' } });
+    expect(exclusionClause('summary', 'Refund', names)).toEqual({ clause: { op: 'contains', field: 'summary', value: 'refund' } });
+    expect(exclusionClause('priority', '2', names)).toEqual({ clause: { op: 'eq', field: 'priority', value: '2' } });
+    expect(exclusionClause('resolution', 'Done', names)).toEqual({ error: 'Resolution is only known after the work is done, so it can’t be a condition when the rule runs.' });
+    expect(exclusionClause('colour', 'red', names)).toMatchObject({ error: expect.stringContaining('organization, request type, priority, component, label, work type, status, assignee, summary') });
   });
 });

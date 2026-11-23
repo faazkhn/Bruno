@@ -17,3 +17,4 @@ Jobs:
 3. "Send <chore> to the admin" → call prove-chore first if needed, then follow the confirmation rule above, then send-to-admin. Return the work item key.
 4. "Would this existing rule work?" → ask for the exported rule JSON and project key, call replay-rule, explain how often it would have acted and how that compares with what people did, and list anything inconclusive.
 5. "How did automation do this week?" → there is no action for this yet; say the weekly report is on the Autopilot project page.
+6. "Why isn't <chore> validated?" / "What if we left out Initech?" → call prove-chore and quote whyNot. For a what-if, call try-exclusion with the field and value; say plainly it is the learning period only, not a proof, and that applying it in Autopilot re-tests it once on the untouched holdout. Never present try-exclusion numbers as validated.

@@ -1,5 +1,5 @@
 /** Pure helpers shared by resolvers, triggers and Rovo actions (no Forge imports, unit-tested). */
-import { evalJql, performs, wilson, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
+import { evalJql, performs, wilson, type Expr, type Settings, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
 
 export type ChoreStatus = 'new' | 'dismissed' | 'proven' | 'handed_off' | 'live';
 export interface StoredChore extends Chore { casesTruncated?: boolean }
@@ -129,3 +129,36 @@ export function passport(i: { projectKey: string; chore: StoredChore & { sentenc
   };
 }
 export type Passport = ReturnType<typeof passport>;
+
+/** Rovo "why not?": the verdict's reason in one sentence, real numbers only. null = validated. */
+export function whyNot(c: Chore, s: Pick<Settings, 'minPrecisionByRisk' | 'minHoldoutPositives' | 'minCoverage'>, suggestion?: string): string | null {
+  const p = c.proof;
+  switch (c.verdict) {
+    case 'proven': return null;
+    case 'needs-judgment': return 'This action closes or resolves work, which needs human judgment: Wind Tunnel never recommends automating it.';
+    case 'too-few': return `Only ${p.tp + p.fn} holdout cases where people did this; at least ${s.minHoldoutPositives} are needed before anything is validated.`;
+    case 'low-coverage': return `Only ${pct1(p.coverage)} of holdout cases could be modelled; at least ${pct1(s.minCoverage)} is needed. Unknown is never treated as safe.`;
+    case 'weak': {
+      const w = wilson(p.tp, p.tp + p.fp);
+      const bar = s.minPrecisionByRisk[c.risk as 'low' | 'medium'] ?? s.minPrecisionByRisk.medium;
+      return `Agreed with the team on ${p.tp} of ${p.tp + p.fp} times it would act (${pct1(p.precision)}, likely ${Math.floor(w.low * 100)}–${Math.ceil(w.high * 100)}%); a ${c.risk}-risk change needs the cautious end of that range to reach ${Math.round(bar * 100)}%.${suggestion ? ` Suggested exclusion: ${suggestion}.` : ''}`;
+    }
+  }
+}
+
+/** Words → engine field, for what-if exclusions. Only facts known when the trigger happens. */
+const WHATIF_FIELDS: Record<string, string> = {
+  organization: 'organizations', organizations: 'organizations', 'request type': 'requestType', requesttype: 'requestType', priority: 'priority',
+  component: 'components', components: 'components', label: 'labels', labels: 'labels', 'work type': 'issuetype', issuetype: 'issuetype',
+  status: 'status', assignee: 'assignee', summary: 'summary',
+};
+export function exclusionClause(field: string, value: string, names: Record<string, Record<string, string>>): { clause: Expr } | { error: string } {
+  const f = field.trim().toLowerCase();
+  if (f === 'resolution') return { error: 'Resolution is only known after the work is done, so it can’t be a condition when the rule runs.' };
+  const canon = WHATIF_FIELDS[f];
+  if (!canon) return { error: `I can try: organization, request type, priority, component, label, work type, status, assignee, summary (a word). "${field}" isn't one of them.` };
+  const v = value.trim();
+  if (canon === 'summary') return { clause: { op: 'contains', field: 'summary', value: v.toLowerCase() } };
+  const id = Object.entries(names[canon] ?? {}).find(([, n]) => n.toLowerCase() === v.toLowerCase())?.[0];
+  return { clause: { op: 'eq', field: canon, value: id ?? v } };
+}

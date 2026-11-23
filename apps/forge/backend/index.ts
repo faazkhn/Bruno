@@ -1,6 +1,6 @@
 /** Forge entry points (see manifest.yml). Bundled with the engine into src/index.js by build.mjs. */
 import ResolverModule from '@forge/resolver';
-import { parseChoreRef } from './logic';
+import { parseChoreRef, whyNot } from './logic';
 import * as svc from './service';
 import * as db from './store';
 
@@ -110,8 +110,30 @@ export async function proveChoreAction(payload: any) {
       precision: pct(c.proof.precision), precisionLikely: likely(d.summary.precisionLikely), recall: pct(c.proof.recall), coverage: pct(c.proof.coverage), verdict: verdictLabel(c.verdict), note: c.note ?? null,
       status: d.status, handoffKey: d.handoff?.handoff_key ?? null,
       topDifferences: c.proof.cases.filter((x) => x.outcome === 'FP' || x.outcome === 'FN').slice(0, 5).map((x) => ({ key: x.key, kind: x.outcome === 'FP' ? 'rule would act where people didn’t' : 'people acted where the rule wouldn’t', reason: x.reason ?? null })),
+      whyNot: whyNot(c, d.settings, c.exceptions?.suggestionText),
       hiddenExamples: c.hiddenCases ? `${c.hiddenCases} example items hidden: you don't have permission to see them` : null,
       suggestedExclusion: c.exceptions?.suggestion ? { text: `Exclude when ${c.exceptions.suggestionText}`, explains: `${pct(c.exceptions.suggestion.share)} of the learning-period times the rule would act where people didn't` } : null,
+    };
+  } catch (e) {
+    return fail(understood, String(e));
+  }
+}
+
+export async function tryExclusionAction(payload: any) {
+  const ref = parseChoreRef(String(payload?.choreId ?? ''));
+  const understood = { choreId: payload?.choreId ?? null, field: payload?.field ?? null, value: payload?.value ?? null };
+  if (!ref || !payload?.field || !payload?.value) return fail(understood, 'I need a chore id (like "WT/set:requestType:339"), a field and a value to exclude.');
+  try {
+    await svc.assertCanBrowse(ref.projectKey);
+    const r = await svc.tryExclusionFor(ref.projectKey, ref.choreId, String(payload.field), String(payload.value));
+    if ('error' in r) return fail(understood, r.error);
+    const day = (t: number) => new Date(t).toISOString().slice(0, 10);
+    const fmt = (x: { precision: number; recall: number; n: number }) => ({ precision: pct(x.precision), recall: pct(x.recall), moments: x.n });
+    return {
+      understood: { ...understood, excluding: r.excluding },
+      learningPeriod: { from: day(r.period.from), to: day(r.period.to) },
+      before: fmt(r.before), after: fmt(r.after),
+      note: 'Learning period only: the holdout was not used, so this is not a proof. To make it real, apply the exclusion in Autopilot; the new version is then tested once on the untouched holdout.',
     };
   } catch (e) {
     return fail(understood, String(e));

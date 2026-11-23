@@ -1,8 +1,8 @@
 /** Use cases shared by the UI resolvers, triggers and Rovo actions. Numbers only ever come from stored runs. */
-import { applyExclusion, describeClause, findExceptions, fromNativeRule, replay, sentence, type NativeExport } from '@wind-tunnel/engine';
+import { applyExclusion, describeClause, findExceptions, fromNativeRule, replay, sentence, tryExclusion, type NativeExport } from '@wind-tunnel/engine';
 import { detail, namesOf, startAnalysis } from './ingest';
 import { browsableIds, canBrowse } from './jira';
-import { caseIdsOf, redactCases, retentionCutoff, summarise, type ChoreStatus, type StoredChore } from './logic';
+import { caseIdsOf, exclusionClause, redactCases, retentionCutoff, summarise, type ChoreStatus, type StoredChore } from './logic';
 import * as db from './store';
 
 export * from './ingest';
@@ -66,6 +66,17 @@ export async function applySuggestedExclusion(projectKey: string, choreId: strin
   const v2 = applyExclusion(row.chore, sug.clause, issues, meta.window, s);
   await db.putChore(projectKey, detail(v2, issues, meta.window, s, await namesOf(projectKey), (row.chore as Detail).firstSeen), row.status === 'dismissed' ? 'new' : row.status);
   return choreView(projectKey, choreId);
+}
+
+/** Rovo what-if: score a proposed exclusion on the learning period only (read-only). */
+export async function tryExclusionFor(projectKey: string, choreId: string, field: string, value: string) {
+  const row = (await db.getChores(projectKey)).find((r) => r.chore.id === choreId);
+  const meta = await db.getAnalysisMeta(projectKey);
+  if (!row || !meta) return { error: 'No such chore, or this project has not been analysed yet.' };
+  const parsed = exclusionClause(field, value, await db.getNames(projectKey));
+  if ('error' in parsed) return parsed;
+  const r = tryExclusion(row.chore, parsed.clause, await db.getIssues(projectKey), meta.window, await db.getSettings(projectKey));
+  return { excluding: describeClause(parsed.clause, await namesOf(projectKey)), ...r };
 }
 
 export async function setStatus(projectKey: string, choreId: string, status: Extract<ChoreStatus, 'new' | 'dismissed'>) {

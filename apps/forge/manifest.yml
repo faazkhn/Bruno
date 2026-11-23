@@ -50,6 +50,7 @@ modules:
         - prove-chore
         - send-to-admin
         - replay-rule
+        - try-exclusion
   action:
     - key: list-chores
       name: List chores
@@ -120,6 +121,27 @@ modules:
           type: integer
           required: false
           description: How many days of history to replay (default 90)
+    - key: try-exclusion
+      name: Try an exclusion
+      function: action-try-exclusion
+      actionVerb: GET
+      description: What-if for a chore that isn't validated - scores the rule with "unless <field> is <value>" added, on the learning period only (never the holdout). Read-only.
+      inputs:
+        choreId:
+          title: Chore id
+          type: string
+          required: true
+          description: Chore id as returned by list-chores, for example WT/set:requestType:339
+        field:
+          title: Field
+          type: string
+          required: true
+          description: organization, request type, priority, component, label, work type, status, assignee, or summary (a word)
+        value:
+          title: Value
+          type: string
+          required: true
+          description: The value to exclude, by name (for example Initech) or id
   rovo:mcp:
     - key: wind-tunnel-mcp
       name: Wind Tunnel
@@ -127,6 +149,7 @@ modules:
         - list-chores
         - prove-chore
         - replay-rule
+        - try-exclusion
   sql:
     - key: main
       engine: mysql
@@ -150,6 +173,8 @@ modules:
       handler: index.sendToAdminAction
     - key: action-replay-rule
       handler: index.replayRuleAction
+    - key: action-try-exclusion
+      handler: index.tryExclusionAction
 resources:
   - key: ui
     path: static/ui/build
