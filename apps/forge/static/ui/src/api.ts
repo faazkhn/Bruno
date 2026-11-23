@@ -34,5 +34,6 @@ export interface ChoreDetail {
     learn: { f1: number; precision: number; recall: number; examples: number };
     exceptions?: { period?: { from: number; to: number }; groups: Group[]; described?: string[]; suggestion?: { share: number; lift: number; learnF1Before: number; learnF1After: number }; suggestionText?: string };
   };
+  shadow?: { from: number; to: number; items: number; wouldAct: number; agreed: number; ruleOnly: number; peopleOnly: number; inconclusive: number; realItemsOnSimulatedRule: boolean } | null;
   demo: boolean; status: Status; names: Record<string, Record<string, string>>; window: Window | null; settings: Settings; handoff: { handoff_key: string } | null; summary: Summary;
 }

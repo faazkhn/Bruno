@@ -2,7 +2,7 @@
 import { applyExclusion, describeClause, findExceptions, fromNativeRule, replay, sentence, tryExclusion, type NativeExport } from '@wind-tunnel/engine';
 import { detail, namesOf, startAnalysis } from './ingest';
 import { browsableIds, canBrowse } from './jira';
-import { caseIdsOf, exclusionClause, redactCases, retentionCutoff, summarise, type ChoreStatus, type StoredChore } from './logic';
+import { caseIdsOf, exclusionClause, liveKey, redactCases, retentionCutoff, shadowOf, summarise, type ChoreStatus, type StoredChore } from './logic';
 import * as db from './store';
 
 export * from './ingest';
@@ -51,7 +51,11 @@ const allowedFor = async (projectKey: string, ids: string[]): Promise<Set<string
 export async function choreView(projectKey: string, choreId: string) {
   const d = await choreDetail(projectKey, choreId);
   if (!d) return null;
-  return { ...d, chore: redactCases(d.chore, await allowedFor(projectKey, caseIdsOf(d.chore))) };
+  // shadow mode: a validated rule that isn't live yet, scored on items newer than its test period
+  const shadow = d.chore.verdict === 'proven' && d.status !== 'live'
+    ? { ...shadowOf(d.chore, await db.getIssues(d.demo ? liveKey(projectKey) : projectKey), Date.now(), d.settings.windowHours), realItemsOnSimulatedRule: d.demo }
+    : null;
+  return { ...d, shadow, chore: redactCases(d.chore, await allowedFor(projectKey, caseIdsOf(d.chore))) };
 }
 
 // ---------- writes ----------
@@ -140,6 +144,8 @@ export async function nightly() {
     // simulated demo history is regenerated, not retained
     const cutoff = (await db.isDemo(p)) ? null : retentionCutoff(await db.getSettings(p), Date.now());
     if (cutoff !== null) await db.purgeBefore(p, cutoff);
+    const live = retentionCutoff(await db.getSettings(p), Date.now()) ?? Date.now() - 97 * 86_400_000;
+    await db.purgeBefore(liveKey(p), live); // real items kept beside demo history
     await startAnalysis(p);
   }
 }

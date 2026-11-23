@@ -111,6 +111,7 @@ export async function proveChoreAction(payload: any) {
       status: d.status, handoffKey: d.handoff?.handoff_key ?? null,
       topDifferences: c.proof.cases.filter((x) => x.outcome === 'FP' || x.outcome === 'FN').slice(0, 5).map((x) => ({ key: x.key, kind: x.outcome === 'FP' ? 'rule would act where people didn’t' : 'people acted where the rule wouldn’t', reason: x.reason ?? null })),
       whyNot: whyNot(c, d.settings, c.exceptions?.suggestionText),
+      shadow: d.shadow ? { since: day(d.shadow.from), newItems: d.shadow.items, wouldAct: d.shadow.wouldAct, agreed: d.shadow.agreed, ruleOnly: d.shadow.ruleOnly, peopleOnly: d.shadow.peopleOnly, note: `Shadow mode: scored on ${d.shadow.realItemsOnSimulatedRule ? 'real work items (rule learned on simulated history)' : 'work items'} that arrived after the test period. Nothing in Jira was changed.` } : null,
       hiddenExamples: c.hiddenCases ? `${c.hiddenCases} example items hidden: you don't have permission to see them` : null,
       suggestedExclusion: c.exceptions?.suggestion ? { text: `Exclude when ${c.exceptions.suggestionText}`, explains: `${pct(c.exceptions.suggestion.share)} of the learning-period times the rule would act where people didn't` } : null,
     };

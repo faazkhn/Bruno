@@ -1,5 +1,5 @@
 /** Pure helpers shared by resolvers, triggers and Rovo actions (no Forge imports, unit-tested). */
-import { evalJql, performs, wilson, type Expr, type Settings, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
+import { evalJql, performs, replay, wilson, type IssueRecord, type Expr, type Settings, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
 
 export type ChoreStatus = 'new' | 'dismissed' | 'proven' | 'handed_off' | 'live';
 export interface StoredChore extends Chore { casesTruncated?: boolean }
@@ -162,3 +162,18 @@ export function exclusionClause(field: string, value: string, names: Record<stri
   const id = Object.entries(names[canon] ?? {}).find(([, n]) => n.toLowerCase() === v.toLowerCase())?.[0];
   return { clause: { op: 'eq', field: canon, value: id ?? v } };
 }
+
+/** Shadow mode: score a rule on items that arrived after its test period. Read-only; same replay as the proof. */
+export function shadowOf(c: Chore, items: IssueRecord[], now: number, windowHours: number) {
+  const range = { from: c.proof.range.to, to: now };
+  const p = replay(c.clauses, c.trigger, c.action, items, range, windowHours * 3_600_000);
+  return {
+    ...range,
+    items: items.filter((i) => i.createdAt >= range.from && i.createdAt < range.to).length,
+    wouldAct: p.tp + p.fp, agreed: p.tp, ruleOnly: p.fp, peopleOnly: p.fn, inconclusive: p.inconclusive,
+  };
+}
+export type Shadow = ReturnType<typeof shadowOf>;
+
+/** In demo mode, real items arriving on the project are stored apart under this key (the main key holds simulated history). */
+export const liveKey = (projectKey: string) => `${projectKey}#live`;

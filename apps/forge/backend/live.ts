@@ -2,7 +2,7 @@
 import { asApp, route } from '@forge/api';
 import { actionOf, fromJira, snapshotBefore } from '@wind-tunnel/engine';
 import { call, changelogs, commentsOf, searchPage } from './jira';
-import { choreRef, isReversal, nudgeMatches, parseSignature, summarise } from './logic';
+import { choreRef, isReversal, liveKey, nudgeMatches, parseSignature, summarise } from './logic';
 import type { Detail } from './service';
 import * as db from './store';
 
@@ -12,7 +12,7 @@ const DAY = 86_400_000;
 
 export async function onIssueChanged(projectKey: string, issueId: string, actorAccountId?: string) {
   if (!(await db.projects()).includes(projectKey)) return;
-  // demo mode: the stored history is simulated, so real items are not stored and nobody is nudged; live runs are still tracked
+  // demo mode: the stored history is simulated, so real items go under <KEY>#live (shadow mode) and nobody is nudged; live runs are still tracked
   const demo = await db.isDemo(projectKey);
   const ids = await db.getFieldIds(projectKey);
   const page = await searchPage(`id = ${issueId}`, ids);
@@ -21,7 +21,7 @@ export async function onIssueChanged(projectKey: string, issueId: string, actorA
   const logs = await changelogs([raw.id]);
   const hash = await db.hasher();
   const rec = fromJira(raw, logs.get(raw.id) ?? [], commentsOf(raw), { hash, fieldIds: ids });
-  if (!demo) await db.putIssues(projectKey, [rec]);
+  await db.putIssues(demo ? liveKey(projectKey) : projectKey, [rec]);
   const rows = await db.getChores(projectKey);
 
   // signature: our generated rules set windtunnel.run when they run (PRD §12)

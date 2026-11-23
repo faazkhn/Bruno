@@ -3,7 +3,7 @@ import { asApp, route } from '@forge/api';
 import { Queue } from '@forge/events';
 import { BOT_CONFIG, SIM_IDS, simulateHistory, analyse, riskOf, verdictOf, describeClause, findExceptions, fromJira, sentence, type Chore, type IssueRecord, type Names } from '@wind-tunnel/engine';
 import { call, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
-import { trimChore } from './logic';
+import { liveKey, trimChore } from './logic';
 import type { Detail } from './service';
 import * as db from './store';
 
@@ -32,6 +32,7 @@ const kvs_clearMeta = (p: string) => db.clearAnalysisMeta(p);
 /** Simulated demo history: 90 days generated from the published history-bot config, clearly labelled in the UI. */
 export async function useDemo(projectKey: string, on: boolean) {
   await db.clearIssues(projectKey);
+  if (!on) await db.clearIssues(liveKey(projectKey)); // real items are stored under the main key again
   await db.clearChores(projectKey);
   await kvs_clearMeta(projectKey);
   await db.setDemo(projectKey, on);

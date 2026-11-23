@@ -99,6 +99,23 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
         </Stack>
       </Card>
 
+      {d.shadow && (
+        <Card>
+          <Stack space="space.100">
+            <Inline space="space.100" alignBlock="center"><Heading size="small">Shadow mode</Heading><Lozenge appearance="inprogress">Watching</Lozenge></Inline>
+            {d.shadow.items === 0 ? (
+              <Text>Watching work items that arrive after {day(d.shadow.from)}. None yet.</Text>
+            ) : (
+              <Text>
+                Since {day(d.shadow.from)}, {d.shadow.items} new work items arrived{d.shadow.realItemsOnSimulatedRule ? ' on this project (real items)' : ''}. The rule would have acted {d.shadow.wouldAct} times and agreed with your team on {d.shadow.agreed}
+                {d.shadow.peopleOnly ? `; people did it ${d.shadow.peopleOnly} times where it wouldn’t` : ''}.
+              </Text>
+            )}
+            <Muted>Shadow mode only scores the rule on work it has never seen; nothing in Jira is changed.{d.shadow.realItemsOnSimulatedRule ? ' The rule was learned on the simulated history and is scored here on real work items.' : ''}</Muted>
+          </Stack>
+        </Card>
+      )}
+
       {c.exceptions && c.exceptions.groups.length > 0 && (
         <Card>
           <Stack space="space.150">
