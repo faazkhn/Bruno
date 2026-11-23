@@ -30,8 +30,8 @@ Data: stored items are kept for the analysis window + 7 days, then purged nightl
 |---|---|---|---|---|
 | A Reconstruction | Past states of an item are rebuilt correctly | 500 public Apache Jira issues (the Public Jira Dataset's source) | **99.90%** (3,056 / 3,059 checks), 3 misses listed | ≥ 99% |
 | B Miner recovery | The miner finds planted chores with the right trigger and conditions | 90 days generated from the published history-bot config (4 agents, VIP exception, 7% noise, bulk edits) | **4 / 4** planted chores recovered. Billing: 70.5% → *not yet*; after the exclusion learned on the learning period: **557 of 653, 85.3% (likely 82–88%), validated** on the untouched holdout. Outage stays *not yet* (68.7%). Customer-reply: 85.0% but likely 82–87%, so *not yet* for an 85% bar (verdicts use the cautious end of the 95% range). | ≥ 90% |
-| C Live execution | Generated rules behave as predicted on a live site | Demo site, rules imported + enabled | *pending — needs rules imported on the site (see docs/HUMAN_TODO.md)* | per-rule table |
-| D Import round-trip | Generated JSON imports without edits | Second project / site | *offline round-trip passes (golden file + parse ↔ generate); live import pending* | 100% |
+| C Live execution | Generated rules behave as predicted on a live site | Demo site, billing rule imported + enabled 23 Nov | **running**: first tick 4 / 4 agree (WT-129 set to Billing and signed; 3 others correctly untouched); table grows daily | per-rule table |
+| D Import round-trip | Generated JSON imports without edits | Demo site, Global automation → Import | **1 / 1** imports unchanged and arrives disabled, after two fixes found by this test (signature action type; `created`/`updated`); read back over REST it parses to the same rule | 100% |
 
 Reproduce A and B: `pnpm --filter benchmark test-a` and `pnpm --filter benchmark test-b`.
 
@@ -82,4 +82,4 @@ pnpm --filter forge build     # bundles backend (with engine) + Custom UI
 cd apps/forge && forge lint && forge deploy -e development
 ```
 
-Known limits (honest): the rule JSON format is built from Atlassian's documented export shape and is marked *unverified* until checked against a real export (test D live); time-in-status triggers (C5, e.g. SLA or escalation rules) are out of scope: Wind Tunnel proves rules triggered by events (created, commented, status or field changed), not by elapsed time; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.
+Known limits (honest): import is verified for the request-type rule shape (test D); label/component edits and the field-changed/customer-commented triggers are generated in shapes read from real rules but not yet imported; time-in-status triggers (C5, e.g. SLA or escalation rules) are out of scope: Wind Tunnel proves rules triggered by events (created, commented, status or field changed), not by elapsed time; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.

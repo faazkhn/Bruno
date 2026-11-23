@@ -246,7 +246,7 @@ function CaseView({ c, detail, nm }: { c: Case; detail: Detail; nm: (f: string, 
   const trig = detail.chore.trigger;
   const triggerText = { created: 'The work item was created', customerCommented: 'A customer commented', statusTo: `Status changed to ${nm('status', trig.value ?? null)}`, fieldChanged: `${FIELD[trig.field ?? ''] ?? trig.field} changed` }[trig.type] ?? trig.type;
   // fields the rule looks at come first in the snapshot
-  const used = new Set(c.clauses.map((cl) => cl.jql.split(/[\s~=!<>(]/)[0]!.replace(/"/g, '')));
+  const used = new Set(Object.keys(c.snapshot).filter((f) => c.clauses.some((cl) => cl.jql.includes(f))));
   const rows = Object.entries(c.snapshot).filter(([f]) => f !== 'fixVersions').sort(([a], [b]) => Number(used.has(b)) - Number(used.has(a)));
   return (
     <Stack space="space.300">
