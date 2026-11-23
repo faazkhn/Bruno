@@ -42,6 +42,9 @@ resolverDef.define('settings', guarded(async (p, _c, k) => {
 resolverDef.define('nudge', guarded((_p, c, k) => svc.nudgeFor(k, String(c.extension?.issue?.id), c.accountId)));
 resolverDef.define('answerNudge', guarded((p, c, k) => svc.answerNudge(k, String(c.extension?.issue?.id), c.accountId, p.choreId, p.answer === 'not-a-chore' ? 'not-a-chore' : 'seen')));
 resolverDef.define('projects', async () => db.projects());
+const safe = (fn: () => Promise<unknown>) => async () => { try { return await fn(); } catch (e) { return { error: `Something went wrong: ${String(e).slice(0, 200)}` }; } };
+resolverDef.define('allProjects', safe(() => svc.browsableProjects()));
+resolverDef.define('home', safe(() => svc.home()));
 
 export const resolver = resolverDef.getDefinitions();
 

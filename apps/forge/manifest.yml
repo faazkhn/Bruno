@@ -6,6 +6,13 @@ modules:
       resource: ui
       resolver:
         function: resolver
+  jira:globalPage:
+    - key: bruno-home
+      title: Bruno
+      icon: resource:ui;bruno.png
+      resource: ui
+      resolver:
+        function: resolver
   jira:issueContext:
     - key: chore-nudge
       title: Bruno

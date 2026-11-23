@@ -87,3 +87,67 @@ export const Brand = ({ tagline }: { tagline?: string }) => (
     </Stack>
   </Inline>
 );
+
+export const num = (n: number) => n.toLocaleString();
+
+/** Bruno talks: mascot + speech bubble. Text only, real numbers only. */
+const bubble = xcss({ backgroundColor: 'color.background.accent.yellow.subtlest', borderRadius: 'radius.large', padding: 'space.200', borderColor: 'color.border.accent.yellow', borderStyle: 'solid', borderWidth: 'border.width', flexGrow: 1 });
+export const BrunoSays = ({ children }: { children: ReactNode }) => (
+  <Inline space="space.150" alignBlock="start">
+    <img src="./bruno.png" width={56} height={56} alt="" style={{ display: 'block', flexShrink: 0 }} />
+    <Box xcss={bubble}><Stack space="space.050">{children}</Stack></Box>
+  </Inline>
+);
+
+/** Headline number with what it means underneath. */
+const tile = xcss({ borderColor: 'color.border', borderStyle: 'solid', borderWidth: 'border.width', borderRadius: 'radius.large', padding: 'space.200', backgroundColor: 'elevation.surface.raised', minWidth: '0' });
+export const StatTile = ({ label, value, sub }: { label: string; value: string; sub?: string }) => (
+  <Box xcss={tile}>
+    <Stack space="space.050">
+      <Text size="small" weight="medium" color="color.text.subtle">{label}</Text>
+      <span style={{ font: token('font.heading.xlarge'), color: token('color.text'), fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      {sub && <Text size="small" color="color.text.subtlest">{sub}</Text>}
+    </Stack>
+  </Box>
+);
+
+const grid = (min: number) => xcss({ display: 'grid', gap: 'space.200', gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))` as never });
+export const Grid = ({ min = 220, children }: { min?: number; children: ReactNode }) => <Box xcss={grid(min)}>{children}</Box>;
+
+/** Share of a whole as one bar, with the words beside it (never colour alone). */
+export function Meter({ part, whole, label }: { part: number; whole: number; label: string }) {
+  const w = whole ? Math.round((100 * part) / whole) : 0;
+  return (
+    <div role="img" aria-label={label} title={label} style={{ height: 8, borderRadius: 4, background: token('color.background.neutral'), overflow: 'hidden' }}>
+      <div style={{ width: `${w}%`, height: '100%', borderRadius: 4, background: token('color.chart.success.bold', token('color.background.success.bold')) }} />
+    </div>
+  );
+}
+
+/** Horizontal bars: one measure across chores, biggest first; each row opens its chore. */
+export function BarChart({ rows, onOpen }: { rows: { id: string; label: string; detail?: string; value: number; tag: string; tip: string }[]; onOpen: (id: string) => void }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <Stack space="space.100">
+      {rows.map((r) => (
+        <Tooltip key={r.id} content={r.tip}>
+          <button
+            type="button"
+            onClick={() => onOpen(r.id)}
+            aria-label={`${r.label}: ${r.value} times by hand, ${r.tag}. Open proof.`}
+            style={{ all: 'unset', cursor: 'pointer', display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 3fr) 132px', alignItems: 'center', gap: 12, padding: '6px 0', width: '100%', borderRadius: 4, boxSizing: 'border-box' }}
+          >
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: token('color.text'), font: token('font.body'), fontWeight: 600 }}>{r.label}</span>
+              {r.detail && <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: token('color.text.subtle'), font: token('font.body.small') }}>{r.detail}</span>}
+            </span>
+            <span style={{ display: 'block', height: 16, background: token('color.background.neutral.subtle') }}>
+              <span style={{ display: 'block', height: '100%', width: `${Math.max(2, (100 * r.value) / max)}%`, background: token('color.chart.brand', token('color.background.brand.bold')), borderRadius: '0 4px 4px 0' }} />
+            </span>
+            <span style={{ whiteSpace: 'nowrap', color: token('color.text.subtle'), font: token('font.body.small'), fontVariantNumeric: 'tabular-nums' }}>{num(r.value)} · {r.tag}</span>
+          </button>
+        </Tooltip>
+      ))}
+    </Stack>
+  );
+}

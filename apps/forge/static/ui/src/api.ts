@@ -1,8 +1,13 @@
 import { invoke } from '@forge/bridge';
 
 /** Resolver call; resolvers return { error } instead of throwing. */
+/** The home page (no project in context) says which project the dashboard shows; project pages leave it unset. */
+let currentProject: string | undefined;
+export const setProject = (key: string | undefined) => { currentProject = key; };
+export const getProject = () => currentProject;
+
 export async function call<T>(name: string, payload: Record<string, unknown> = {}): Promise<T> {
-  const r = (await invoke(name, payload)) as T & { error?: string };
+  const r = (await invoke(name, currentProject ? { projectKey: currentProject, ...payload } : payload)) as T & { error?: string };
   if (r && typeof r === 'object' && 'error' in r && r.error) throw new Error(r.error);
   return r;
 }
@@ -12,7 +17,7 @@ export type Status = 'new' | 'dismissed' | 'proven' | 'handed_off' | 'live';
 export type Verdict = 'proven' | 'too-few' | 'low-coverage' | 'weak' | 'needs-judgment';
 export interface Summary {
   ref: string; id: string; version: number; sentence: string; count: number; people: number; matches: number; fires: number;
-  differences: number; precision: number; recall: number; coverage: number; verdict: Verdict; status: Status; perMonth: number; handoff?: string | null;
+  differences: number; precision: number; recall: number; coverage: number; verdict: Verdict; status: Status; perMonth: number; handoff?: string | null; fixable?: boolean;
   precisionLikely: Range; recallLikely: Range;
 }
 export interface Range { low: number; high: number }
@@ -37,3 +42,5 @@ export interface ChoreDetail {
   shadow?: { from: number; to: number; items: number; wouldAct: number; agreed: number; ruleOnly: number; peopleOnly: number; inconclusive: number; realItemsOnSimulatedRule: boolean } | null;
   demo: boolean; status: Status; names: Record<string, Record<string, string>>; window: Window | null; settings: Settings; handoff: { handoff_key: string } | null; summary: Summary;
 }
+export interface HomeRow { projectKey: string; demo: boolean; phase: Progress['phase']; chores: number; validated: number; live: number }
+export interface ProjectRef { key: string; name: string; type: string }

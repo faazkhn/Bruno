@@ -39,7 +39,7 @@ Reproduce A and B: `pnpm --filter benchmark test-a` and `pnpm --filter benchmark
 
 ## Judge instructions
 
-**Install:** use the installation link on the Devpost page (Jira, any Jira or JSM Cloud site). Then in any Jira / JSM project: sidebar → **Autopilot**.
+**Install:** use the installation link on the Devpost page (Jira, any Jira or JSM Cloud site). Then open **Apps → Bruno** in the Jira sidebar: Bruno says hi, you pick a project and choose *Read real history* or *Use sample data* (90 simulated days, labelled). Nothing in Jira changes. Each project also gets an **Autopilot** page in its own sidebar.
 
 **Quickest look (2 minutes), on a project with real history:**
 1. Project sidebar → **Autopilot** → **Analyse the last 90 days**. Progress shows by phase (listing → fetching history → finding chores → proving).

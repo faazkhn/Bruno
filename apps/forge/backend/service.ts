@@ -1,7 +1,8 @@
 /** Use cases shared by the UI resolvers, triggers and Rovo actions. Numbers only ever come from stored runs. */
 import { applyExclusion, describeClause, findExceptions, fromNativeRule, replay, sentence, tryExclusion, type NativeExport } from '@wind-tunnel/engine';
 import { detail, namesOf, startAnalysis } from './ingest';
-import { browsableIds, canBrowse } from './jira';
+import { asUser, route } from '@forge/api';
+import { browsableIds, call, canBrowse } from './jira';
 import { caseIdsOf, exclusionClause, liveKey, redactCases, retentionCutoff, shadowOf, summarise, type ChoreStatus, type StoredChore } from './logic';
 import * as db from './store';
 
@@ -27,10 +28,30 @@ export async function assertCanBrowse(projectKey: string) {
 
 // ---------- reads ----------
 
+/** Projects the viewer can browse (the home page's project picker). */
+export async function browsableProjects() {
+  const r = await call<{ values?: { key: string; name: string; projectTypeKey: string }[] }>(asUser(), route`/rest/api/3/project/search?maxResults=100&orderBy=name`);
+  return (r.values ?? []).map((p) => ({ key: p.key, name: p.name, type: p.projectTypeKey }));
+}
+
+/** Home page: one summary per analysed project the viewer can browse. */
+export async function home() {
+  const out = [];
+  for (const p of await db.projects()) {
+    if (!(await canBrowse(p))) continue;
+    const [rows, demo, progress] = await Promise.all([db.getChores(p), db.isDemo(p), db.getProgress(p)]);
+    out.push({
+      projectKey: p, demo, phase: progress.phase, chores: rows.length,
+      validated: rows.filter((r) => r.chore.verdict === 'proven').length, live: rows.filter((r) => r.status === 'live').length,
+    });
+  }
+  return out;
+}
+
 export async function overview(projectKey: string) {
   const [rows, meta, progress, settings, handoffs] = await Promise.all([db.getChores(projectKey), db.getAnalysisMeta(projectKey), db.getProgress(projectKey), db.getSettings(projectKey), db.getHandoffs(projectKey)]);
   const chores = rows
-    .map((r) => ({ ...summarise(projectKey, r.chore, (r.chore as Detail).sentence ?? r.chore.id, r.status), handoff: handoffs.find((h) => h.chore_id === r.chore.id)?.handoff_key ?? null }))
+    .map((r) => ({ ...summarise(projectKey, r.chore, (r.chore as Detail).sentence ?? r.chore.id, r.status), handoff: handoffs.find((h) => h.chore_id === r.chore.id)?.handoff_key ?? null, fixable: !!(r.chore as Detail).exceptions?.suggestion }))
     .sort((a, b) => b.perMonth - a.perMonth);
   return { projectKey, chores, meta: meta ?? null, progress, settings, demo: await db.isDemo(projectKey) };
 }
