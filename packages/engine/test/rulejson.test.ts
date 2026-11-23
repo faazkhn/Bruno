@@ -67,3 +67,31 @@ test('JSON that is not a rule export is listed as unsupported, never a crash', (
     expect(fromNativeRule(bad as never, ctx)).toMatchObject({ trigger: null, action: null, unsupported: ['no rule in export'] });
   }
 });
+
+// Shapes observed in 196 real rules on the demo site (2026-11-23, Automation REST API): see docs/day1-spikes.md
+test('components use the schema versions and value shapes real site rules use', () => {
+  const rule = toNativeRule(billing, 'x', ctx).rules[0]!;
+  const byType = Object.fromEntries([rule.trigger, ...rule.components].map((c) => [c.type, c]));
+  expect(byType['jira.issue.event.trigger:created']!.schemaVersion).toBe(1);
+  expect(byType['jira.jql.condition']!.schemaVersion).toBe(-1);
+  expect(byType['jira.issue.edit']!.schemaVersion).toBe(12);
+  expect(byType['jira.issue.edit']!.value.operations[0]).toEqual({ field: { type: 'ID', value: 'customfield_10010' }, fieldType: 'com.atlassian.servicedesk:vp-origin', type: 'SET', value: { type: 'ID', value: '339' } });
+
+  const tr = toNativeRule({ ...billing, action: { kind: 'transition', field: 'status', value: '3' } }, 'x', ctx).rules[0]!.components.find((c) => c.type === 'jira.issue.transition')!;
+  expect(tr.schemaVersion).toBe(11);
+  expect(tr.value).toEqual({ operations: [], advancedFields: null, sendNotifications: false, destinationStatus: { type: 'ID', value: '3' }, transitionMatch: '' });
+
+  const lab = toNativeRule({ ...billing, action: { kind: 'add', field: 'labels', value: 'urgent' } }, 'x', ctx).rules[0]!.components.find((c) => c.type === 'jira.issue.edit')!;
+  expect(lab.value.operations[0]).toEqual({ field: { type: 'ID', value: 'labels' }, fieldType: 'labels', type: 'ADDREMOVE', value: { ADD: [{ type: 'NAME', value: 'urgent' }] } });
+});
+
+test('replay parses real-site edit and transition shapes (names, ADDREMOVE)', () => {
+  const rule = toNativeRule(billing, 'x', ctx);
+  const r = rule.rules[0]!;
+  r.components = r.components.filter((c) => c.type !== 'jira.issue.edit');
+  r.components.push({ component: 'ACTION', type: 'jira.issue.edit', schemaVersion: 12, value: { operations: [{ field: { type: 'ID', value: 'labels' }, fieldType: 'labels', type: 'ADDREMOVE', value: { ADD: [{ type: 'NAME', value: 'procurement-failed' }] } }] }, children: [], conditions: [] });
+  expect(fromNativeRule(rule, ctx).action).toEqual({ kind: 'add', field: 'labels', value: 'procurement-failed' });
+  r.components = r.components.filter((c) => c.type !== 'jira.issue.edit');
+  r.components.push({ component: 'ACTION', type: 'jira.issue.edit', schemaVersion: 12, value: { operations: [{ field: { type: 'NAME', value: 'Request Type' }, fieldType: 'com.atlassian.servicedesk:vp-origin', type: 'SET', value: { type: 'NAME', value: 'Billing' } }] }, children: [], conditions: [] });
+  expect(fromNativeRule(rule, ctx).action).toEqual({ kind: 'set', field: 'requestType', value: '339' });
+});

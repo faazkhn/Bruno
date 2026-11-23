@@ -51,7 +51,12 @@ export interface NativeRule {
 }
 export interface NativeExport { cloud: true; rules: NativeRule[] }
 
-const comp = (component: NativeComponent['component'], type: string, value: any): NativeComponent => ({ component, type, schemaVersion: 1, value, children: [], conditions: [] });
+/** schemaVersion per component type, as real rules on a Cloud site carry them (196 rules read 2026-11-23); unknown → 1 */
+const SCHEMA: Record<string, number> = { [REGISTRY.jql]: -1, [REGISTRY.fieldChanged]: 2, [REGISTRY.edit]: 12, [REGISTRY.transition]: 11 };
+const comp = (component: NativeComponent['component'], type: string, value: any): NativeComponent => ({ component, type, schemaVersion: SCHEMA[type] ?? 1, value, children: [], conditions: [] });
+/** Jira field type keys that edit operations carry */
+const FIELD_TYPE: Record<string, string> = { requestType: 'com.atlassian.servicedesk:vp-origin', organizations: 'com.atlassian.servicedesk:sd-customer-organizations' };
+const FIELD_BY_TYPE = Object.fromEntries(Object.entries(FIELD_TYPE).map(([k, v]) => [v, k]));
 
 /** canonical field → JQL field name; `byName` = Jira needs display names, not ids, for this field */
 const JQL_FIELD: Record<string, { jql: string; byName?: boolean }> = {
@@ -96,18 +101,19 @@ function triggerComponents(t: Trigger, ctx: SiteContext): { trigger: NativeCompo
   switch (t.type) {
     case 'created': return { trigger: comp('TRIGGER', REGISTRY.created, { eventKey: 'jira:issue_created', issueEvent: 'issue_created', eventFilters: [] }), extra: [] };
     case 'statusTo': return { trigger: comp('TRIGGER', REGISTRY.transitioned, { fromStatus: [], toStatus: [{ type: 'ID', value: t.value }] }), extra: [] };
-    case 'fieldChanged': return { trigger: comp('TRIGGER', REGISTRY.fieldChanged, { changeType: 'ANY_CHANGE', fields: [{ type: 'ID', value: nativeField(t.field, ctx) }] }), extra: [] };
+    case 'fieldChanged': return { trigger: comp('TRIGGER', REGISTRY.fieldChanged, { changeType: 'ANY_CHANGE', fields: [{ type: 'ID', value: nativeField(t.field, ctx) }], actions: [] }), extra: [] };
     case 'customerCommented':
       return {
-        trigger: comp('TRIGGER', REGISTRY.commented, { eventKey: 'jira:issue_updated', issueEvent: 'issue_commented', eventFilters: [] }),
+        trigger: comp('TRIGGER', REGISTRY.commented, { eventTypes: [], eventFilters: [] }),
         extra: [comp('CONDITION', REGISTRY.compare, { first: '{{comment.author.accountType}}', second: 'customer', operator: 'EQUALS' })],
       };
   }
 }
 
 function actionComponent(a: Action, ctx: SiteContext): NativeComponent {
-  if (a.kind === 'transition') return comp('ACTION', REGISTRY.transition, { destinationStatus: { type: 'ID', value: a.value } });
-  const op = { field: { type: 'ID', value: nativeField(a.field, ctx) }, type: a.kind === 'add' ? 'ADD' : 'SET', value: a.field === 'labels' ? a.value : { type: 'ID', value: a.value } };
+  if (a.kind === 'transition') return comp('ACTION', REGISTRY.transition, { operations: [], advancedFields: null, sendNotifications: false, destinationStatus: { type: 'ID', value: a.value }, transitionMatch: '' });
+  const ref = { type: a.field === 'labels' ? 'NAME' : 'ID', value: a.value };
+  const op = { field: { type: 'ID', value: nativeField(a.field, ctx) }, fieldType: FIELD_TYPE[a.field] ?? a.field, ...(a.kind === 'add' ? { type: 'ADDREMOVE', value: { ADD: [ref] } } : { type: 'SET', value: ref }) };
   return comp('ACTION', REGISTRY.edit, { operations: [op], advancedFields: null, sendNotifications: false });
 }
 
@@ -156,6 +162,8 @@ function unguard(e: Expr): Expr {
   return e;
 }
 
+const NAMED_FIELD: Record<string, string> = { 'request type': 'requestType', organizations: 'organizations', components: 'components', component: 'components', labels: 'labels', priority: 'priority', assignee: 'assignee' };
+
 /** Parse an exported rule (first rule) back into a replayable rule; anything we can't model is listed. */
 export function fromNativeRule(exp: NativeExport, ctx: SiteContext): { trigger: Trigger | null; clauses: Expr[]; action: Action | null; unsupported: string[] } {
   const rule = Array.isArray(exp?.rules) ? exp.rules[0] : undefined;
@@ -196,12 +204,15 @@ export function fromNativeRule(exp: NativeExport, ctx: SiteContext): { trigger: 
     } else if (c.component === 'ACTION' && c.type === REGISTRY.property && c.value?.key === SIGNATURE_KEY) {
       // our signature
     } else if (c.component === 'ACTION' && c.type === REGISTRY.transition && !action) {
-      action = { kind: 'transition', field: 'status', value: String(c.value.destinationStatus.value) };
+      const d = c.value?.destinationStatus;
+      action = { kind: 'transition', field: 'status', value: d?.type === 'NAME' ? reverse('status', String(d.value)) : String(d?.value) };
     } else if (c.component === 'ACTION' && c.type === REGISTRY.edit && !action && c.value?.operations?.length === 1) {
       const op = c.value.operations[0];
-      const field = fieldOf(String(op.field.value));
-      const value = typeof op.value === 'string' ? op.value : String(op.value?.value);
-      if (op.type === 'ADD' && SET_FIELDS.has(field)) action = { kind: 'add', field, value };
+      const field = FIELD_BY_TYPE[op.fieldType] ?? (op.field?.type === 'NAME' ? NAMED_FIELD[String(op.field.value).toLowerCase()] ?? String(op.field.value) : fieldOf(String(op.field.value)));
+      const adds = op.type === 'ADDREMOVE' && !op.value?.REMOVE?.length && op.value?.ADD?.length === 1 ? op.value.ADD[0] : null;
+      const raw = adds ?? op.value;
+      const value = typeof raw === 'string' ? raw : raw?.type === 'NAME' && field !== 'labels' ? reverse(field, String(raw.value)) : String(raw?.value);
+      if ((op.type === 'ADD' || adds) && SET_FIELDS.has(field)) action = { kind: 'add', field, value };
       else if (op.type === 'SET' && !SET_FIELDS.has(field)) action = { kind: 'set', field, value };
       else unsupported.push(`edit ${op.type} ${field}`);
     } else {

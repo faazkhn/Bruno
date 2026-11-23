@@ -27,7 +27,7 @@
         {
           "component": "CONDITION",
           "type": "jira.jql.condition",
-          "schemaVersion": 1,
+          "schemaVersion": -1,
           "value": "summary ~ \"invoice\" AND (NOT (Organizations = \"Initech\") OR Organizations IS EMPTY)",
           "children": [],
           "conditions": []
@@ -35,7 +35,7 @@
         {
           "component": "ACTION",
           "type": "jira.issue.edit",
-          "schemaVersion": 1,
+          "schemaVersion": 12,
           "value": {
             "operations": [
               {
@@ -43,6 +43,7 @@
                   "type": "ID",
                   "value": "customfield_10010"
                 },
+                "fieldType": "com.atlassian.servicedesk:vp-origin",
                 "type": "SET",
                 "value": {
                   "type": "ID",
