@@ -3,7 +3,7 @@ import { asApp, route } from '@forge/api';
 import { Queue } from '@forge/events';
 import { BOT_CONFIG, SIM_IDS, simulateHistory, analyse, riskOf, verdictOf, describeClause, findExceptions, fromJira, sentence, type Chore, type IssueRecord, type Names } from '@wind-tunnel/engine';
 import { call, changelogs, commentsOf, doneStatuses, fieldIds, names, searchPage } from './jira';
-import { liveKey, trimChore } from './logic';
+import { liveKey, trimChore, weeklyTrend } from './logic';
 import type { Detail } from './service';
 import * as db from './store';
 
@@ -127,6 +127,7 @@ async function runAnalysis(projectKey: string) {
   await db.putAnalysisMeta(projectKey, {
     window: result.window, runAt: Date.now(), issues: issues.length,
     unexplained: result.unexplained.map((u) => ({ id: u.id, count: u.count, reason: u.reason })),
+    trend: weeklyTrend(result.chores, issues, result.window),
   });
   await db.putProgress(projectKey, { ...started, phase: 'done', done: issues.length, finishedAt: Date.now() });
 }

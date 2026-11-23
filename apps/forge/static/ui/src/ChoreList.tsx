@@ -7,7 +7,7 @@ import Spinner from '@atlaskit/spinner';
 import { token } from '@atlaskit/tokens';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { call, type Overview, type Progress, type Status, type Summary } from './api';
-import { BarChart, Brand, BrunoSays, Card, day, Grid, likely, Meter, Muted, num, pct, StatTile, StatusChip, VerdictChip } from './ui';
+import { BarChart, Brand, BrunoSays, Card, day, Grid, likely, Meter, Muted, num, pct, RangeChart, Sparkline, StatTile, StatusChip, VerdictChip, WeeklyChart } from './ui';
 
 const PHASES: { id: Progress['phase']; label: string }[] = [
   { id: 'listing', label: 'Listing items' },
@@ -170,6 +170,35 @@ export function ChoreList({ onOpen, toolbar }: { onOpen: (choreId: string, tab?:
             </Stack>
           </Card>
 
+          <Grid min={480}>
+            {meta.trend && (
+              <Card>
+                <Stack space="space.150">
+                  <Heading size="small">Hand-work per week</Heading>
+                  <Muted>All {chores.length} chores together, done by people (bulk edits included).</Muted>
+                  <WeeklyChart
+                    start={meta.trend.start}
+                    unit="times by hand"
+                    weeks={(Object.values(meta.trend.byChore)[0] ?? []).map((_, i) => chores.reduce((n, c) => n + (meta.trend!.byChore[c.id]?.[i] ?? 0), 0))}
+                  />
+                </Stack>
+              </Card>
+            )}
+            <Card>
+              <Stack space="space.150">
+                <Heading size="small">How sure is Bruno?</Heading>
+                <RangeChart
+                  onOpen={(id) => onOpen(id)}
+                  rows={[...chores].sort((a, b) => b.precision - a.precision).map((c) => ({
+                    id: c.id, label: split(c.sentence).what, point: c.precision, low: c.precisionLikely.low, high: c.precisionLikely.high,
+                    bar: c.risk === 'high' || c.verdict === 'needs-judgment' ? null : c.risk === 'medium' ? 0.85 : 0.8,
+                    tag: c.verdict === 'proven' ? 'validated' : c.verdict === 'needs-judgment' ? 'needs judgment' : 'not yet',
+                  }))}
+                />
+              </Stack>
+            </Card>
+          </Grid>
+
           <Stack space="space.150">
             <Inline spread="space-between" alignBlock="center" shouldWrap>
               <Heading size="small">Chores</Heading>
@@ -184,7 +213,7 @@ export function ChoreList({ onOpen, toolbar }: { onOpen: (choreId: string, tab?:
                 </Button>
               </Inline>
             </Inline>
-            {shown.length ? <Grid min={320}>{shown.map((c) => <ChoreCard key={c.id} c={c} onOpen={onOpen} />)}</Grid> : <Muted>No chores with this status.</Muted>}
+            {shown.length ? <Grid min={320}>{shown.map((c) => <ChoreCard key={c.id} c={c} onOpen={onOpen} trend={meta.trend?.byChore[c.id]} />)}</Grid> : <Muted>No chores with this status.</Muted>}
           </Stack>
 
           {weekly && (weekly.live.length > 0 || weekly.newChores.length > 0) && (
@@ -213,7 +242,7 @@ export function ChoreList({ onOpen, toolbar }: { onOpen: (choreId: string, tab?:
 }
 
 /** One chore: what it is, how sure we are, and the obvious next step. */
-function ChoreCard({ c, onOpen }: { c: Summary; onOpen: (choreId: string, tab?: string) => void }) {
+function ChoreCard({ c, onOpen, trend }: { c: Summary; onOpen: (choreId: string, tab?: string) => void; trend?: number[] }) {
   const next = c.status === 'live' ? 'See live runs' : c.verdict === 'proven' && !c.handoff ? 'Review & hand off' : c.fixable && c.verdict !== 'proven' ? 'See the fix' : 'Open proof';
   return (
     <Card>
@@ -223,7 +252,10 @@ function ChoreCard({ c, onOpen }: { c: Summary; onOpen: (choreId: string, tab?: 
           <StatusChip status={c.status} />
         </Inline>
         <button type="button" onClick={() => onOpen(c.id)} style={{ all: 'unset', cursor: 'pointer', font: token('font.heading.xsmall'), color: token('color.text') }}>{c.sentence}</button>
-        <Muted>{num(c.count)} times by hand · {c.people} {c.people === 1 ? 'person' : 'people'}</Muted>
+        <Inline spread="space-between" alignBlock="center">
+          <Muted>{num(c.count)} times by hand · {c.people} {c.people === 1 ? 'person' : 'people'}</Muted>
+          {trend && <Sparkline weeks={trend} label={`Hand-work per week: ${trend.join(', ')}`} />}
+        </Inline>
         <Stack space="space.075">
           <Meter part={c.matches} whole={c.fires} label={`Agreed with the team on ${c.matches} of ${c.fires} times it would act`} />
           <Text size="small">Agreed {num(c.matches)} of {num(c.fires)} times it would act · {pct(c.precision)}, {likely(c.precisionLikely)}</Text>

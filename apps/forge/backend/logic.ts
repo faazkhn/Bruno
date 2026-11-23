@@ -1,5 +1,5 @@
 /** Pure helpers shared by resolvers, triggers and Rovo actions (no Forge imports, unit-tested). */
-import { evalJql, performs, replay, wilson, type IssueRecord, type Expr, type Settings, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
+import { actionOf, evalJql, performs, replay, wilson, type IssueRecord, type Expr, type Settings, type Action, type Chore, type Event, type Snapshot } from '@wind-tunnel/engine';
 
 export type ChoreStatus = 'new' | 'dismissed' | 'proven' | 'handed_off' | 'live';
 export interface StoredChore extends Chore { casesTruncated?: boolean }
@@ -177,3 +177,22 @@ export type Shadow = ReturnType<typeof shadowOf>;
 
 /** In demo mode, real items arriving on the project are stored apart under this key (the main key holds simulated history). */
 export const liveKey = (projectKey: string) => `${projectKey}#live`;
+
+/** Hand actions per week for each chore across the analysis window (people only, bulk edits included). */
+export function weeklyTrend(chores: Chore[], issues: IssueRecord[], window: { start: number; end: number }) {
+  const WEEK = 7 * 86_400_000;
+  const n = Math.ceil((window.end - window.start) / WEEK);
+  const byChore: Record<string, number[]> = Object.fromEntries(chores.map((c) => [c.id, new Array<number>(n).fill(0)]));
+  for (const issue of issues) {
+    for (const e of issue.events) {
+      if (e.actorKind !== 'human_agent' || e.ts < window.start || e.ts >= window.end) continue;
+      for (const a of actionOf(e)) {
+        for (const c of chores) {
+          if (a.kind === c.action.kind && a.field === c.action.field && a.value === c.action.value) byChore[c.id]![Math.floor((e.ts - window.start) / WEEK)]!++;
+        }
+      }
+    }
+  }
+  return { start: window.start, byChore };
+}
+export type Trend = ReturnType<typeof weeklyTrend>;

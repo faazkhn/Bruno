@@ -6,7 +6,7 @@ import Spinner from '@atlaskit/spinner';
 import { rovo } from '@forge/bridge';
 import { useEffect, useState } from 'react';
 import { call, type Summary } from './api';
-import { Muted, pct } from './ui';
+import { BrunoSays, Meter, Muted, num, pct } from './ui';
 
 interface Nudge { chore: Summary; teammates: number; count: number }
 
@@ -19,7 +19,14 @@ export function NudgePanel() {
 
   useEffect(() => { void call<Nudge | null>('nudge').then(setN).catch(() => setN(null)); }, []);
   if (n === undefined) return <Spinner size="small" label="Checking for chores" />;
-  if (n === null) return <Muted>Nothing to suggest on this item. Bruno speaks up here only right after you do a chore by hand that it has proven a rule for.</Muted>;
+  if (n === null) {
+    return (
+      <BrunoSays>
+        <Text>Nothing to suggest here.</Text>
+        <Muted>I only speak up right after you do something by hand that I’ve proven a rule for.</Muted>
+      </BrunoSays>
+    );
+  }
   const c = n.chore;
   const answer = async (a: 'seen' | 'not-a-chore') => { await call('answerNudge', { choreId: c.id, answer: a }); setN(null); };
   const send = async () => {
@@ -31,8 +38,12 @@ export function NudgePanel() {
 
   return (
     <Stack space="space.150">
-      <Text>{who} did this {n.count} times by hand: <strong>{c.sentence}</strong>.</Text>
-      <Text>A rule that matched your team on {c.matches} of {c.fires} times ({pct(c.precision)}) on a later period it didn’t learn from is ready.</Text>
+      <BrunoSays>
+        <Text weight="bold">Psst, I can take this one.</Text>
+        <Text>{who} did this {num(n.count)} times by hand: <strong>{c.sentence}</strong>.</Text>
+        <Text>On tickets I never learned from, the rule agreed with your team {num(c.matches)} of {num(c.fires)} times ({pct(c.precision)}).</Text>
+      </BrunoSays>
+      <Meter part={c.matches} whole={c.fires} label={`Agreed ${c.matches} of ${c.fires} times`} />
       {msg && <SectionMessage appearance="information">{msg}</SectionMessage>}
       <Inline space="space.100" shouldWrap>
         <Button onClick={() => setProof((x) => !x)} aria-expanded={proof}>{proof ? 'Hide proof' : 'Open proof'}</Button>

@@ -15,3 +15,9 @@ tools/history-bot/data/*.log
 data/public-jira-slice/
 apps/forge/src/index.js
 apps/forge/static/ui/build/
+
+# Working notes, plans and generated samples stay local; only the codebase is committed
+*.md
+!/README.md
+docs/
+.superpowers/

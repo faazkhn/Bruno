@@ -161,7 +161,7 @@ export const putNames = (p: string, v: Record<string, Record<string, string>>) =
 export const getFieldIds = async (p: string) => (await kvs.get<{ requestType?: string; organizations?: string }>(`fields:${p}`)) ?? {};
 export const putFieldIds = (p: string, v: object) => kvs.set(`fields:${p}`, v);
 
-export interface AnalysisMeta { window: { start: number; cut: number; end: number }; runAt: number; issues: number; unexplained: { id: string; count: number; reason: string }[] }
+export interface AnalysisMeta { window: { start: number; cut: number; end: number }; runAt: number; issues: number; unexplained: { id: string; count: number; reason: string }[]; trend?: { start: number; byChore: Record<string, number[]> } }
 export const getAnalysisMeta = (p: string) => kvs.get<AnalysisMeta>(`analysis:${p}`);
 export const clearAnalysisMeta = (p: string) => kvs.delete(`analysis:${p}`);
 export const putAnalysisMeta = (p: string, v: AnalysisMeta) => kvs.set(`analysis:${p}`, v);

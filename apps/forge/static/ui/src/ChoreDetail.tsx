@@ -11,7 +11,7 @@ import { token } from '@atlaskit/tokens';
 import { router } from '@forge/bridge';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { call, type Case, type ChoreDetail as Detail } from './api';
-import { AgreementBar, Card, day, likely, Muted, NumberLink, pct, StatusChip, VerdictChip, when } from './ui';
+import { AgreementBar, BarChart, BrunoSays, Card, day, Grid, likely, Muted, num, NumberLink, pct, RangeChart, StatTile, StatusChip, VerdictChip, WeeklyChart, when } from './ui';
 
 const TABS: { id: Case['outcome']; label: string; empty: string }[] = [
   { id: 'TP', label: 'Matches', empty: 'No matches on the holdout period.' },
@@ -62,43 +62,86 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
   const cases = p.cases.filter((x) => x.outcome === TABS[tab]!.id);
   const counts: Record<string, number> = { TP: p.tp, FP: p.fp, FN: p.fn, inconclusive: p.inconclusive };
 
+  const i = (c.sentence ?? '').lastIndexOf(', ');
+  const what = i < 0 ? c.sentence ?? c.id : (c.sentence ?? '').slice(i + 2, i + 3).toUpperCase() + (c.sentence ?? '').slice(i + 3);
+  const cond = i < 0 ? '' : (c.sentence ?? '').slice(0, i);
+  const bar = c.verdict === 'needs-judgment' ? null : d.summary.risk === 'medium' ? 0.85 : 0.8;
+  const lk = d.summary.precisionLikely;
+  const say = {
+    proven: [`This one’s ready.`, `On tickets I never learned from, the rule agreed with your team ${num(p.tp)} of ${num(p.tp + p.fp)} times. Even the cautious end of that (${Math.floor(lk.low * 100)}%) clears the ${Math.round((bar ?? 0.8) * 100)}% bar.`],
+    weak: [`Close, but not yet.`, `It agreed ${num(p.tp)} of ${num(p.tp + p.fp)} times (${pct(p.precision)}, likely ${Math.floor(lk.low * 100)}–${Math.ceil(lk.high * 100)}%), and it needs ${Math.round((bar ?? 0.8) * 100)}%.${c.exceptions?.suggestion ? ` I think I know why: most misses are when ${c.exceptions.suggestionText}. Try the fix below.` : ''}`],
+    'too-few': ['Not enough tickets yet.', `People did this only ${p.tp + p.fn} times in the test period. I need at least ${d.settings.minHoldoutPositives} before I’ll vouch for a rule.`],
+    'low-coverage': ['I can’t see enough of these.', `I could only model ${pct(p.coverage)} of the cases, and unknown never counts as safe.`],
+    'needs-judgment': ['I’d leave this one to people.', 'It closes or resolves work, and that always needs a human to decide, however often it’s done by hand.'],
+  }[c.verdict];
+
   return (
     <Stack space="space.300">
-      <Inline space="space.100" alignBlock="center"><Button appearance="subtle" onClick={onBack}>← All chores</Button></Inline>
+      <Inline spread="space-between" alignBlock="center" shouldWrap>
+        <Button appearance="subtle" onClick={onBack}>← All chores</Button>
+        <Inline space="space.100" shouldWrap>
+          {d.handoff && <Button appearance="subtle" onClick={() => router.open(`/browse/${d.handoff!.handoff_key}`)}>Open hand-off</Button>}
+          <Button onClick={dismiss} isDisabled={busy === 'dismiss'}>{d.status === 'dismissed' ? 'Restore chore' : 'Not a chore'}</Button>
+          <span title={blocked ?? 'Creates a work item for your Jira admin with the rule and import steps'}>
+            <Button appearance="primary" isDisabled={!!blocked || !!d.handoff} onClick={() => setConfirming(true)}>{d.handoff ? `Handed off (${d.handoff.handoff_key})` : 'Send to admin'}</Button>
+          </span>
+        </Inline>
+      </Inline>
+
       <Stack space="space.100">
         <Inline space="space.100" alignBlock="center" shouldWrap>
           <VerdictChip verdict={c.verdict} />
           <StatusChip status={d.status} />
           <Lozenge>Version {c.version}</Lozenge>
         </Inline>
-        <Heading size="medium">{c.sentence}</Heading>
-        <Muted>Done by hand {c.count} times by {c.people} {c.people === 1 ? 'person' : 'people'} in this window.{c.note ? ` Note: ${c.note}.` : ''}</Muted>
+        <Heading size="large">{what}</Heading>
+        {cond && <Text size="large" color="color.text.subtle">{cond}</Text>}
+        {c.note && <Muted>Note: {c.note}.</Muted>}
       </Stack>
       {notice && <SectionMessage appearance={notice.appearance}>{notice.text}</SectionMessage>}
 
-      <Card>
-        <Stack space="space.200">
-          <Heading size="small">Proof</Heading>
-          <Text>
-            Tested on {day(p.range.from)} – {day(p.range.to)}, a period not used for learning or for choosing exclusions. The rule would have acted {p.tp + p.fp} times and agreed with your team on{' '}
-            <NumberLink onClick={() => show(0)} label="Show matches">{p.tp}</NumberLink> of them.
-          </Text>
-          <AgreementBar
-            segments={[
-              { key: 'tp', label: 'Matches the team', value: p.tp, color: token('color.background.success.bold'), onClick: () => show(0) },
-              { key: 'fp', label: 'Rule would act where people didn’t', value: p.fp, color: token('color.background.warning.bold'), onClick: () => show(1) },
-              { key: 'fn', label: 'People acted where the rule wouldn’t', value: p.fn, color: token('color.background.discovery.bold'), onClick: () => show(2) },
-              { key: 'inc', label: 'Inconclusive', value: p.inconclusive, color: token('color.background.neutral.bold'), onClick: () => show(3) },
-            ]}
-          />
-          <Muted>Agreement with what your team did — not proof the team was always right.</Muted>
-          <Inline space="space.300" shouldWrap>
-            <span title="Of the times the rule would act, how often people did the same. The likely range (95%) shows how sure that is; the verdict uses its cautious end."><Text>Precision {pct(p.precision)} ({p.tp} of {p.tp + p.fp} · {likely(d.summary.precisionLikely)})</Text></span>
-            <span title="Of the times people did it, how often the rule would have done it"><Text>Recall {pct(p.recall)} ({p.tp} of {p.tp + p.fn} · {likely(d.summary.recallLikely)})</Text></span>
-            <span title="Share of cases we could model; under 80% blocks hand-off"><Text>Coverage {pct(p.coverage)}</Text></span>
-          </Inline>
-        </Stack>
-      </Card>
+      <BrunoSays>
+        <Text weight="bold">{say[0]}</Text>
+        <Text>{say[1]}</Text>
+      </BrunoSays>
+
+      <Grid min={190}>
+        <StatTile label="Agreed with your team" value={pct(p.precision)} sub={`${num(p.tp)} of ${num(p.tp + p.fp)} · ${likely(lk)}`} />
+        <StatTile label="Caught of what people did" value={pct(p.recall)} sub={`${num(p.tp)} of ${num(p.tp + p.fn)} · ${likely(d.summary.recallLikely)}`} />
+        <StatTile label="Could be modelled" value={pct(p.coverage)} sub={`needs ${pct(d.settings.minCoverage)}`} />
+        <StatTile label="Done by hand" value={num(c.count)} sub={`by ${c.people} ${c.people === 1 ? 'person' : 'people'}`} />
+      </Grid>
+
+      <Grid min={420}>
+        <Card>
+          <Stack space="space.200">
+            <Heading size="small">Tested on tickets Bruno never saw</Heading>
+            <Text>
+              {day(p.range.from)} – {day(p.range.to)}, a period not used for learning or for choosing exclusions. The rule would have acted {num(p.tp + p.fp)} times and agreed with your team on{' '}
+              <NumberLink onClick={() => show(0)} label="Show matches">{num(p.tp)}</NumberLink> of them.
+            </Text>
+            <AgreementBar
+              segments={[
+                { key: 'tp', label: 'Matches the team', value: p.tp, color: token('color.background.success.bold'), onClick: () => show(0) },
+                { key: 'fp', label: 'Rule would act where people didn’t', value: p.fp, color: token('color.background.warning.bold'), onClick: () => show(1) },
+                { key: 'fn', label: 'People acted where the rule wouldn’t', value: p.fn, color: token('color.background.discovery.bold'), onClick: () => show(2) },
+                { key: 'inc', label: 'Inconclusive', value: p.inconclusive, color: token('color.background.neutral.bold'), onClick: () => show(3) },
+              ]}
+            />
+            <RangeChart onOpen={() => show(0)} rows={[{ id: c.id, label: 'Agreement', point: p.precision, low: lk.low, high: lk.high, bar, tag: c.verdict === 'proven' ? 'validated' : c.verdict === 'needs-judgment' ? 'needs judgment' : 'not yet' }]} />
+            <Muted>Agreement with what your team did, not proof the team was always right.</Muted>
+          </Stack>
+        </Card>
+        {d.trend && (
+          <Card>
+            <Stack space="space.150">
+              <Heading size="small">Done by hand, week by week</Heading>
+              <Muted>Every time a person did this in the last {d.trend.weeks.length} weeks.</Muted>
+              <WeeklyChart start={d.trend.start} weeks={d.trend.weeks} unit="times by hand" />
+            </Stack>
+          </Card>
+        )}
+      </Grid>
 
       {d.shadow && (
         <Card>
@@ -120,28 +163,28 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
       {c.exceptions && c.exceptions.groups.length > 0 && (
         <Card>
           <Stack space="space.150">
-            <Heading size="small">Exceptions (learning period)</Heading>
-            <Muted>Found on {c.exceptions.period ? `${day(c.exceptions.period.from)} – ${day(c.exceptions.period.to)}` : 'the learning period'} only, so the holdout test above stays unbiased.</Muted>
-            {c.exceptions.groups.map((g, i) => (
-              <Stack key={i} space="space.050">
-                <Text>
-                  <NumberLink onClick={() => setOpenGroup(openGroup === i ? null : i)} label={`List these ${g.differences} learning-period items`}>{g.differences} of {g.ofDifferences}</NumberLink>{' '}
-                  {g.outcome === 'FP' ? 'times the rule would act where people didn’t' : 'times people acted where the rule wouldn’t'}: {c.exceptions!.described?.[i]} ({g.lift.toFixed(1)}× more often than elsewhere)
-                </Text>
-                {openGroup === i && (
-                  <Muted>
-                    Learning-period items{g.caseKeys.length > 40 ? ` (first 40 of ${g.caseKeys.length})` : ''}: {g.caseKeys.slice(0, 40).join(', ')}
-                  </Muted>
-                )}
-              </Stack>
-            ))}
+            <Heading size="small">Why it misses</Heading>
+            <Muted>Found on the learning period only ({c.exceptions.period ? `${day(c.exceptions.period.from)} – ${day(c.exceptions.period.to)}` : 'before the test'}), so the test above stays fair. Click a row to list the tickets.</Muted>
+            <BarChart
+              onOpen={(id) => setOpenGroup(openGroup === Number(id) ? null : Number(id))}
+              rows={c.exceptions.groups.map((g, k) => ({
+                id: String(k), label: (c.exceptions!.described?.[k] ?? '').replace(/^./, (x) => x.toUpperCase()), detail: g.outcome === 'FP' ? 'rule would act, people didn’t' : 'people acted, rule wouldn’t',
+                value: g.differences, tag: `${g.lift.toFixed(1)}×`, display: `${num(g.differences)} of ${num(g.ofDifferences)} · ${g.lift.toFixed(1)}×`,
+                tip: `${g.differences} of ${g.ofDifferences} differences, ${g.lift.toFixed(1)}× more often than elsewhere`,
+              }))}
+            />
+            {openGroup !== null && c.exceptions.groups[openGroup] && (
+              <Muted>
+                Learning-period items{c.exceptions.groups[openGroup]!.caseKeys.length > 40 ? ` (first 40 of ${c.exceptions.groups[openGroup]!.caseKeys.length})` : ''}: {c.exceptions.groups[openGroup]!.caseKeys.slice(0, 40).join(', ') || 'hidden (you can’t browse them)'}
+              </Muted>
+            )}
             {c.exceptions.suggestion && (
               <SectionMessage
-                appearance="information"
-                title={`Suggested: exclude when ${c.exceptions.suggestionText}`}
-                actions={[<SectionMessageAction key="apply" onClick={exclude}>{busy === 'exclude' ? 'Re-proving…' : 'Apply and re-prove'}</SectionMessageAction>]}
+                appearance="discovery"
+                title={`The fix: leave out ${c.exceptions.suggestionText}`}
+                actions={[<SectionMessageAction key="apply" onClick={exclude}>{busy === 'exclude' ? 'Re-testing…' : 'Apply and re-test'}</SectionMessageAction>]}
               >
-                <Text>Explains {pct(c.exceptions.suggestion.share)} of the times the rule would act where people didn’t, and raises the learning-period F1 from {c.exceptions.suggestion.learnF1Before.toFixed(2)} to {c.exceptions.suggestion.learnF1After.toFixed(2)}. Uses only facts known when the trigger happens.</Text>
+                <Text>Explains {pct(c.exceptions.suggestion.share)} of the times the rule would act where people didn’t, and raises the learning-period score from {c.exceptions.suggestion.learnF1Before.toFixed(2)} to {c.exceptions.suggestion.learnF1After.toFixed(2)}. Uses only facts known when the trigger happens; the new version is tested once on the same untouched tickets.</Text>
               </SectionMessage>
             )}
           </Stack>
@@ -202,14 +245,6 @@ export function ChoreDetail({ choreId, initialTab, onBack }: { choreId: string; 
         </div>
       )}
 
-      <Inline space="space.100" shouldWrap>
-        <span title={blocked ?? 'Creates a work item for your Jira admin with the rule and import steps'}>
-          <Button appearance="primary" isDisabled={!!blocked || !!d.handoff} onClick={() => setConfirming(true)}>{d.handoff ? `Handed off (${d.handoff.handoff_key})` : 'Send to admin'}</Button>
-        </span>
-        <Button onClick={dismiss} isDisabled={busy === 'dismiss'}>{d.status === 'dismissed' ? 'Restore chore' : 'Not a chore'}</Button>
-        {d.handoff && <Button appearance="subtle" onClick={() => router.open(`/browse/${d.handoff!.handoff_key}`)}>Open hand-off</Button>}
-      </Inline>
-      {blocked && <Muted>{blocked}</Muted>}
 
       <ModalTransition>
         {confirming && (

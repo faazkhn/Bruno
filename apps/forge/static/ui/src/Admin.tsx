@@ -6,7 +6,7 @@ import TextArea from '@atlaskit/textarea';
 import Textfield from '@atlaskit/textfield';
 import { useEffect, useState } from 'react';
 import { call, type Settings } from './api';
-import { Card, day, Muted, pct, Brand } from './ui';
+import { BrunoSays, Card, day, Grid, Meter, Muted, num, pct, StatTile } from './ui';
 
 interface Replay {
   understood: { rule: string; conditions: string[] }; inconclusive: boolean; unsupported?: string[]; reason?: string; error?: string;
@@ -51,26 +51,32 @@ export function Admin() {
 
   return (
     <Stack space="space.300">
-      <Brand tagline="Settings and rule replay" />
-      <Inline space="space.100" alignBlock="end">
+      <BrunoSays>
+        <Text weight="bold">The knobs, and a way to test rules you already have.</Text>
+        <Text>Change how far back I look and what counts as a chore, or paste an existing automation rule and I’ll show what it would have done on real history. None of this changes anything in Jira.</Text>
+      </BrunoSays>
+      <Inline space="space.100" alignBlock="end" shouldWrap>
         <Stack space="space.050">
           <label htmlFor="pk"><Text weight="medium">Project key</Text></label>
           <Textfield id="pk" value={projectKey} onChange={(e) => setProjectKey((e.target as HTMLInputElement).value.toUpperCase())} width="small" />
         </Stack>
-        {projects.length > 0 && <Muted>Analysed so far: {projects.join(', ')}</Muted>}
+        {projects.map((p) => (
+          <Button key={p} spacing="compact" appearance={p === projectKey ? 'primary' : 'subtle'} aria-pressed={p === projectKey} onClick={() => setProjectKey(p)}>{p}</Button>
+        ))}
       </Inline>
       {err && <SectionMessage appearance="error">{err}</SectionMessage>}
 
+      <Grid min={420}>
       {s && (
         <Card>
           <Stack space="space.150">
             <Heading size="small">Settings for {projectKey}</Heading>
-            <Inline space="space.200" shouldWrap>
+            <Stack space="space.150">
               <Field id="wd" label="History window (days)" help="Learn on the first two thirds, prove on the last third."><Textfield id="wd" type="number" min={14} max={365} value={s.windowDays} onChange={num('windowDays')} /></Field>
               <Field id="mc" label="Minimum repeats" help="Actions on fewer items are never chores."><Textfield id="mc" type="number" min={5} value={s.minCount} onChange={num('minCount')} /></Field>
               <Field id="mp" label="Minimum people" help="Use 1 only on a single-person demo project."><Textfield id="mp" type="number" min={1} value={s.minPeople} onChange={num('minPeople')} /></Field>
               <Field id="ap" label="Hand-off project (optional)" help="Where admin work items go; defaults to the project itself."><Textfield id="ap" value={s.adminProjectKey ?? ''} onChange={(e) => setS({ ...s, adminProjectKey: (e.target as HTMLInputElement).value.toUpperCase() })} /></Field>
-            </Inline>
+            </Stack>
             <Inline space="space.100" alignBlock="center">
               <input id="anchor" type="checkbox" checked={s.anchor === 'lastActivity'} onChange={(e) => setS({ ...s, anchor: e.target.checked ? 'lastActivity' : 'now' })} />
               <label htmlFor="anchor"><Text>End the window at the project’s last activity (for older or imported projects)</Text></label>
@@ -82,7 +88,7 @@ export function Admin() {
 
       <Card>
         <Stack space="space.150">
-          <Heading size="small">Replay an existing rule</Heading>
+          <Heading size="small">Test a rule you already have</Heading>
           <Muted>Paste a rule exported from Automation (Settings → System → Global automation → Export). Bruno shows what it would have done on {projectKey || 'the project'}’s history and how that compares with what people did. Nothing in Jira changes.</Muted>
           <label htmlFor="rule"><Text weight="medium">Rule JSON</Text></label>
           <TextArea id="rule" value={json} onChange={(e) => setJson(e.target.value)} minimumRows={6} resize="vertical" />
@@ -93,6 +99,7 @@ export function Admin() {
           </div>
         </Stack>
       </Card>
+      </Grid>
     </Stack>
   );
 }
@@ -111,10 +118,17 @@ function ReplayResult({ r }: { r: Replay }) {
   if (r.error) return <SectionMessage appearance="error">{r.error}</SectionMessage>;
   if (r.inconclusive) return <SectionMessage appearance="warning" title="Inconclusive">{r.reason} {r.unsupported?.length ? `Can’t model: ${r.unsupported.join('; ')}.` : ''}</SectionMessage>;
   return (
-    <Stack space="space.100">
+    <Stack space="space.150">
       <Text><strong>{r.sentence}</strong></Text>
-      <Text>{day(r.range!.from)} – {day(r.range!.to)}: the rule would have acted {r.wouldAct} times; people did the same {r.matchesPeople} of those times. It would act {r.ruleOnly} times where people didn’t, and people acted {r.peopleOnly} times where it wouldn’t.</Text>
-      <Muted>Precision {pct(r.precision!)} · recall {pct(r.recall!)} · coverage {pct(r.coverage!)}</Muted>
+      <Muted>{day(r.range!.from)} – {day(r.range!.to)}</Muted>
+      <Grid min={130}>
+        <StatTile label="Would act" value={num(r.wouldAct!)} />
+        <StatTile label="People agreed" value={num(r.matchesPeople!)} sub={pct(r.precision!)} />
+        <StatTile label="Rule only" value={num(r.ruleOnly!)} sub="people didn’t" />
+        <StatTile label="People only" value={num(r.peopleOnly!)} sub="rule wouldn’t" />
+      </Grid>
+      <Meter part={r.matchesPeople!} whole={r.wouldAct!} label={`People agreed on ${r.matchesPeople} of the ${r.wouldAct} times the rule would act`} />
+      <Muted>Recall {pct(r.recall!)} · coverage {pct(r.coverage!)}</Muted>
       {!!r.hiddenExamples && <Muted>{r.hiddenExamples} examples hidden: you don’t have permission to see them.</Muted>}
       {r.examples && r.examples.length > 0 && <Muted>Examples: {r.examples.map((e) => `${e.key} (${e.outcome})`).join(', ')}</Muted>}
     </Stack>

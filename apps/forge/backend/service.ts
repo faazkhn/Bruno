@@ -62,7 +62,7 @@ export async function choreDetail(projectKey: string, choreId: string) {
   const meta = await db.getAnalysisMeta(projectKey);
   const settings = await db.getSettings(projectKey);
   const handoff = (await db.getHandoffs(projectKey)).find((h) => h.chore_id === choreId) ?? null;
-  return { demo: await db.isDemo(projectKey), chore: row.chore as Detail, status: row.status, names: await db.getNames(projectKey), window: meta?.window ?? null, settings, handoff, summary: summarise(projectKey, row.chore, (row.chore as Detail).sentence ?? choreId, row.status) };
+  return { demo: await db.isDemo(projectKey), chore: row.chore as Detail, status: row.status, names: await db.getNames(projectKey), window: meta?.window ?? null, trend: meta?.trend?.byChore[choreId] ? { start: meta.trend.start, weeks: meta.trend.byChore[choreId]! } : null, settings, handoff, summary: summarise(projectKey, row.chore, (row.chore as Detail).sentence ?? choreId, row.status) };
 }
 
 /** What the viewer may see: simulated items are not Jira items; real ones go through a per-item permission check. */

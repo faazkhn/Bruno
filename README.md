@@ -1,87 +1,101 @@
-<img src="docs/assets/bruno-512.png" alt="Bruno, a smiling cartoon man with curly hair, round glasses and a beard" width="120" align="right" />
+<img src="assets/bruno.png" alt="Bruno, a smiling cartoon man with curly hair, round glasses and a beard" width="120" align="right" />
 
 # Bruno
 
-**Turns a team's repetitive clicks in Jira and Jira Service Management into automation rules, proven against what the team actually did.**
+**Automation rules proven on your team's past tickets, before they go live.**
 
-Codegeist 2026 · Apps for Business Teams · Atlassian Forge, Runs on Atlassian (no egress, no external services, no LLM decides anything).
+## Inspiration
 
-> Automation rules proven on your team's past tickets, before they go live.
->
-> Jira can suggest automations. Bruno finds the work your team repeats by hand, then proves a rule on past tickets it never learned from, before anyone turns it on.
+It started with a question that sounds simple: how do you test a Jira Automation rule before you switch it on?
+
+You mostly can't. Atlassian's own docs say Cloud automation has no test mode; the usual workaround is to run the rule by hand on one ticket and hope. "Preview or dry run a rule" has been a feature request for years. And once a rule has changed tickets, there is no undo. We read about a stale-ticket rule that closed around 2,000 live tickets and emailed every reporter. Nobody wanted that rule to be wrong. They just had no way to see it coming.
+
+The first version of this project was a replay engine for rules people had already written. While building it we kept noticing the other half of the problem: most teams don't have a pile of rules waiting to be tested. They have a pile of clicks. Someone reads "invoice" in a request and sets the request type to Billing. Someone sees a VPN ticket and adds the Network component. Hundreds of times a month, by hand, because writing a rule feels risky and nobody has time to check it properly.
+
+So we flipped it around. Instead of asking people to write a rule and trust it, Bruno looks at what the team already does, writes the rule for them, and proves it on tickets it has never seen. Only then does anyone have to decide whether to switch it on.
+
+We called him Bruno because he is the colleague who has quietly watched how your team works for years, and finally says: "You've done this one 1,988 times. Want me to take it?"
 
 ## What it does
 
-1. **Finds chores.** Reads a project's history (changelog + comments) and finds actions people repeat by hand — e.g. *set Request type to Billing*, *add the Network component*, *move to In Progress when the customer replies*. Deterministic mining, no AI guessing.
-2. **Learns the rule.** For each chore it finds the trigger (created, customer commented, status changed, field changed) and up to three conditions that were true *at trigger time* — e.g. *summary mentions "invoice"*. Every rule reads as one sentence.
-3. **Proves it on a holdout.** Learns on the first two thirds of the window and replays the rule on the last third, which it never saw — at **every** moment the rule could have acted, not just on items people changed: *"agreed with your team on N of the M times it would act"* (precision first), plus where people acted and it wouldn't (recall). Every number clicks through to the real Jira items. It measures agreement with what the team did, not proof the team was right.
-4. **Knows when not to automate.** "Proven" needs ≥ 80% precision for low-risk changes (labels, components, request type) and ≥ 85% for priority, assignee and status moves; closing or resolving work is never recommended ("needs judgment"). Anything it can't model is inconclusive, never safe.
-5. **Explains and fixes its own misses.** Groups the rule's mistakes **in the learning period** by one trigger-time fact (*"most are organisation Initech"*) and suggests an exclusion only if it explains ≥ 50% and improves the learning-period score. Accepting creates a new version, re-proved on the untouched holdout — so the improved number is still an unbiased test.
-6. **Hands off.** Creates a Jira work item for the admin with the evidence, an implementation-ready Automation rule definition (JSON to import — it arrives **disabled** — or recreate by hand) and the steps. Forge apps can't create Automation rules directly, and Bruno doesn't try; an admin reviews and enables.
-7. **Tracks live results.** Generated rules set an issue property (`windtunnel.run`) when they run; Bruno reports runs and *possible human corrections* (a person set the field back within 24 h of a signed run) every week.
-8. **Nudges in the ticket.** Right after an agent does a proven chore by hand, the issue panel shows *"You and N teammates did this M times…"* with Open proof / Send to admin / Not a chore.
-9. **Rovo agent + MCP.** Ask *"What do we do most by hand?"*, *"Prove the billing chore"*, *"Why isn't it validated?"*, *"What if we left out Initech?"*, *"Send it to our admin"*. Five actions (`list-chores`, `prove-chore` with a one-sentence *why not*, `try-exclusion` — a what-if scored on the learning period only, never presented as proof —, `send-to-admin`, `replay-rule`); the four read-only ones are also exposed through `rovo:mcp`.
+Bruno lives inside Jira and Jira Service Management. Open **Apps → Bruno** and he will:
 
-Privacy: actors are stored as salted hashes; the only identity ever resolved is the viewer's own ("you and 3 teammates"). No per-person statistics or rankings.
+- **Find the chores.** He reads a project's history (changelogs and comments) and counts the actions people repeat by hand, like setting a request type, adding a component or moving a ticket to In Progress when a customer replies. Counting, not guessing.
+- **Write the rule.** For each chore he finds the trigger and up to three conditions that were true *at the moment the trigger happened*, and says it as one sentence: *"When a work item is created, if summary mentions invoice and Organization is not Initech, set Request type to Billing."*
+- **Prove it on tickets he never learned from.** He learns on the first two thirds of the history and tests on the last third. The headline is honest: *"agreed with your team on 557 of the 653 times it would act"*, with the likely range next to it (82–88%), because 17 out of 20 is not the same thing as 557 out of 653. A rule is only called *Validated* when even the cautious end of that range clears the bar.
+- **Know when not to automate.** Labels and categories need 80% agreement, priority and status moves need 85%, and closing or resolving work is never recommended. Anything he can't model counts against the rule, never for it.
+- **Explain his misses.** When a rule falls short he shows why, for example *"most of the mistakes are organisation Initech"*, suggests one exclusion, and re-tests the new version on the same untouched tickets.
+- **Hand it to your admin.** He creates a work item with a short review checklist, the evidence and a rule file your admin imports through Global automation. It arrives switched off. Bruno never changes anything in Jira on his own.
+- **Keep watching.** Rules that aren't switched on yet run in *shadow mode* on new tickets. Rules that are live tag every run, so the weekly view shows what automation did and where a person quietly undid it.
+- **Talk.** Ask the Bruno agent in Rovo *"What do we do most by hand?"*, *"Why isn't the VPN chore validated?"* or *"What if we left out Initech?"*. The same read-only tools are available to outside agents over MCP.
 
-Data: stored items are kept for the analysis window + 7 days, then purged nightly (simulated demo history is regenerated instead). Every example item, snapshot and timeline is shown only after a per-item permission check as the viewer (issue security included); counts stay complete. On uninstall, Forge deletes the app's storage (SQL + KVS): Atlassian keeps it soft-deleted for 28 days for recovery requests, then it is gone ([Forge storage docs](https://developer.atlassian.com/platform/forge/runtime-reference/storage-api/)).
+Every number on every screen comes from a real run of the engine, and every number clicks through to the tickets behind it.
 
-## Accuracy (real runs, misses included — details in [docs/accuracy.md](docs/accuracy.md))
+## How we built it
 
-| Test | Proves | Data | Result | Bar |
-|---|---|---|---|---|
-| A Reconstruction | Past states of an item are rebuilt correctly | 500 public Apache Jira issues (the Public Jira Dataset's source) | **99.90%** (3,056 / 3,059 checks), 3 misses listed | ≥ 99% |
-| B Miner recovery | The miner finds planted chores with the right trigger and conditions | 90 days generated from the published history-bot config (4 agents, VIP exception, 7% noise, bulk edits) | **4 / 4** planted chores recovered. Billing: 70.5% → *not yet*; after the exclusion learned on the learning period: **557 of 653, 85.3% (likely 82–88%), validated** on the untouched holdout. Outage stays *not yet* (68.7%). Customer-reply: 85.0% but likely 82–87%, so *not yet* for an 85% bar (verdicts use the cautious end of the 95% range). | ≥ 90% |
-| C Live execution | Generated rules behave as predicted on a live site | Demo site, billing rule imported + enabled 23 Nov | **running**: first tick 4 / 4 agree (WT-129 set to Billing and signed; 3 others correctly untouched); table grows daily | per-rule table |
-| D Import round-trip | Generated JSON imports without edits | Demo site, Global automation → Import | **1 / 1** imports unchanged and arrives disabled, after two fixes found by this test (signature action type; `created`/`updated`); read back over REST it parses to the same rule | 100% |
+Bruno is built entirely on Forge and Runs on Atlassian. No data leaves your site, there are no outside services, and no AI decides anything.
 
-Reproduce A and B: `pnpm --filter benchmark test-a` and `pnpm --filter benchmark test-b`.
+- **A pure TypeScript engine** with no Forge code in it, built test-first. It rebuilds any ticket's fields at any past moment, evaluates a small subset of JQL with three-valued logic (unknown is never treated as safe), finds chores, picks triggers, learns conditions, replays rules on held-out tickets and writes the native rule file.
+- **A Forge app** around it: ingestion and analysis run on an async queue, history is stored in Forge SQL, settings in KVS, triggers keep it up to date, and a nightly job re-analyses and clears out old data.
+- **Custom UI with the Atlassian Design System**, so it looks like the rest of Jira in light and dark mode. A global page for the home, a project page, an admin page and a small panel inside tickets.
+- **A Rovo agent with five actions** (four read-only, one that creates the hand-off and always asks first) and an MCP server exposing the read-only ones.
+- **Permissions everywhere.** Before any ticket key, snapshot or history leaves the backend, Bruno checks that the person looking can actually browse that ticket. Actors are stored as salted hashes, and there are no per-person stats.
 
-## Judge instructions
+We also built a small history bot that files realistic support requests on a demo site every 15 minutes, with chores planted in it, so we could check that Bruno finds what we know is there.
 
-**Install:** use the installation link on the Devpost page (Jira, any Jira or JSM Cloud site). Then open **Apps → Bruno** in the Jira sidebar: Bruno says hi, you pick a project and choose *Read real history* or *Use sample data* (90 simulated days, labelled). Nothing in Jira changes. Each project also gets an **Autopilot** page in its own sidebar.
+## Challenges we ran into
 
-**Quickest look (2 minutes), on a project with real history:**
-1. Project sidebar → **Autopilot** → **Analyse the last 90 days**. Progress shows by phase (listing → fetching history → finding chores → proving).
-2. Click a chore → proof card (learned / proved dates, matches N of M, agreement bar) → click any number → the cases → click an item for the snapshot at trigger time, each condition true/false and the item's own history.
-3. If there's a suggested exclusion: **Apply and re-prove**.
-4. **Send to admin** → a work item with the rule JSON appears. Import it via Settings → System → Global automation → Import rules (it arrives disabled).
+**Jira's history is messier than it looks.** Ids that change after a site migration, fields that log a delta in one place and a full list in another, timestamps in two formats. Our reconstruction test caught every one of these. It went from 97.7% to 99.9% once we learned to resolve renamed values by name.
 
-**Project without history?** Two options:
-- *Older or imported projects:* ⚙ Settings → Marketplace apps → **Bruno** (admin page) → enter the project key → tick *End the window at the project's last activity* → save → Analyse.
-- *New project, no history:* Autopilot → **Load simulated demo history** (90 simulated days, clearly labelled).
-- *Replay an existing rule:* admin page → paste a rule exported from Automation → see what it would have done versus what people did.
-- *Grow history:* the history bot (below) runs against your site and plants known chores every 15 minutes.
+**The obvious trigger is usually wrong.** "Work item created" comes before almost everything, so a naive search picks it for every chore. We had to choose triggers by how well they predict the action, not just how often they appear.
 
-**Rovo:** open Rovo chat → agent **Bruno** → "What do we do most by hand in WT?" → "Why isn't the outage chore validated?" → "What if we left out Initech?".
+**The rule file format isn't really documented.** Our first generated rule failed to import with a vague error. We built the same step by hand in the rule editor, read it back, and found the right component name. Then the importer rejected the file again, so we removed fields from a real export one at a time until we found the two it actually requires. The generated rule now imports unchanged and arrives switched off.
 
-**MCP (external agents):** the same four read-only tools (`list-chores`, `prove-chore`, `try-exclusion`, `replay-rule`) are exposed through `rovo:mcp`. An admin enables the app's MCP server for external clients in the site's Rovo/MCP settings, then a client (Cursor, …) connects with OAuth; every call runs as that user, with the same per-item permission checks.
+**Forge apps can't create automation rules.** So Bruno hands the rule to an admin instead. That turned out to be the right design anyway: a human always decides.
 
-## How it works
+**Small numbers lie.** 85% from 20 cases and 85% from 653 cases are very different claims. Switching every verdict to the lower end of a 95% interval changed one of our own results from "ready" to "not yet", and we kept it that way.
 
-```
-Jira/JSM history ─► [1 Ingest] ─► [2 Mine chores] ─► [3 Prove on holdout] ─► [4 Hand off & track] ─► Autopilot page
-                     async queue    candidates         replay, metrics,          work item + rule JSON    Issue panel nudge
-                     bulk changelog trigger finder      exceptions               signatures, reversals    Rovo agent / MCP
-                     Forge SQL      learner (≤3 clauses)                                                   Admin page
-```
+## Accomplishments that we're proud of
 
-- `packages/engine` — pure TypeScript, zero Forge imports, 86 unit tests (TDD): event model, Jira adapter, snapshot builder, JQL subset with three-valued logic (unknown is never "safe"), candidates (bulk edits collapsed), trigger finder, greedy conjunctive learner with keyword widening, holdout replay, exceptions, sentences, native rule JSON generator + parser.
-- `apps/forge` — Forge app: manifest, ingest/analyse consumer (async events, `Retry-After`), Forge SQL + KVS storage, resolvers, triggers, scheduled jobs, Rovo agent + actions, MCP. `apps/forge/static/ui` — Custom UI with the Atlassian Design System (`@atlaskit/*`, ADS tokens, light and dark).
-- `tools/history-bot` — grows honest demo history on a dev site; its behaviour is published in [`packages/engine/src/sim/config.ts`](packages/engine/src/sim/config.ts) and [tools/history-bot/README.md](tools/history-bot/README.md).
-- `tools/benchmark` — tests A and B.
-- Design: [docs/superpowers/specs/2026-11-23-wind-tunnel-design.md](docs/superpowers/specs/2026-11-23-wind-tunnel-design.md) · decisions: [docs/decisions.md](docs/decisions.md) · glossary: [docs/glossary.md](docs/glossary.md).
+- 99.9% of 3,059 field checks rebuilt correctly on 500 public Apache Jira issues.
+- All 4 chores we planted in 90 days of simulated history found, with the right trigger and conditions.
+- A billing rule that went from 70.5% to a validated 85.3% after one exclusion Bruno found on his own, tested on tickets he never saw.
+- A generated rule imported into a real Jira site without edits, switched on, and running live on real tickets, tagging every run.
+- An agent that never invents a number. Rovo only repeats what the engine computed, and says plainly when something isn't proven.
 
-Rules the engine keeps: only facts known at trigger time become conditions; vocabulary and candidate selection use the learning period only; anything that can't be modelled is *inconclusive* and lowers coverage — coverage under 80% blocks hand-off; a proof needs ≥ 10 holdout cases where people acted.
+## What we learned
 
-## Develop
+- Honest numbers are more convincing than big ones. Showing the misses next to the matches made people trust the matches.
+- Testing on tickets the rule never saw changes everything. A lot of rules look great on the data they were learned from.
+- "Inconclusive" is a feature. When the engine can't tell, saying so is better than guessing in either direction.
+- Building close to Jira's real formats means you learn where the edges are by hitting them. Most of our best fixes came from trying the real thing, not reading about it.
+
+## What's next for Bruno
+
+- Rules based on time, like "waiting for customer for 3 days", which teams ask for constantly.
+- More action types and more checks that imported rules behave exactly as predicted over weeks, not days.
+- A Confluence page per chore with its proof, so the evidence lives where teams already write things down.
+- Working with a few real service desks to see which chores they hand to Bruno first, and which ones they never will.
+
+## Onboarding experience (please read)
+
+1. Install Bruno with the installation link on the Devpost page (any Jira or Jira Service Management Cloud site).
+2. In the Jira sidebar open **Apps → Bruno**. Bruno says hello.
+3. Pick a project and choose how to start:
+   - **Read real history** if the project has a few weeks of work. Bruno reads the last 90 days in the background.
+   - **Use sample data** for a first look or an empty project. This loads 90 simulated days with planted chores, a VIP exception and some noise, clearly labelled as sample data. Nothing is written to Jira.
+4. Click any chore to see its proof, the tickets behind each number, and a step-by-step replay of any single case. Try **See the fix** on a chore that isn't ready yet.
+5. On a validated chore choose **Review & hand off**. Bruno creates a work item for your admin with the rule file attached. To try it, import that file in **Settings → System → Global automation → … → Import flows**. It arrives switched off.
+6. In Rovo, mention **@Bruno** and ask *"What do we do most by hand in WT?"* (use your project key).
+
+Each project also gets an **Autopilot** page in its own sidebar with the same view.
+
+## Running it yourself
 
 ```bash
 pnpm install
 pnpm -r test                  # engine, history bot, forge backend
-pnpm lint                     # eslint + typecheck
-pnpm --filter forge build     # bundles backend (with engine) + Custom UI
+pnpm lint
+pnpm --filter forge build
 cd apps/forge && forge lint && forge deploy -e development
 ```
-
-Known limits (honest): import is verified for the request-type rule shape (test D); label/component edits and the field-changed/customer-commented triggers are generated in shapes read from real rules but not yet imported; time-in-status triggers (C5, e.g. SLA or escalation rules) are out of scope: Bruno proves rules triggered by events (created, commented, status or field changed), not by elapsed time; the description field's history isn't stored, so description conditions on items whose description changed later are inconclusive.
