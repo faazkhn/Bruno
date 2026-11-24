@@ -67,7 +67,7 @@ These numbers all come from real runs:
 - **UI:** Custom UI with the Atlassian Design System, so it looks like the rest of Jira in light and dark mode.
 - **Rovo agent and MCP:** read-only tools, plus one hand-off action that always asks first.
 - **No AI makes decisions.** Finding chores is plain counting and statistics. Rovo only explains what the engine already worked out.
-- **Privacy:** people are stored as salted hashes, there are no per-person stats, and every ticket shown is checked against the viewer's permissions.
+- **Privacy:** people are stored as salted hashes, there are no per-person stats, and every ticket shown is checked against the viewer's permissions. Full details in the [privacy policy](https://gist.github.com/faazkhn/726b692e4bfa5b235ba1f9cce1f9d82f).
 
 ## Run it locally
 
