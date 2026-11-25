@@ -107,7 +107,7 @@ const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10);
 export function passport(i: { projectKey: string; chore: StoredChore & { sentence?: string }; demo: boolean; window: { start: number; cut: number; end: number }; now: number }) {
   const c = i.chore, p = c.proof, w = wilson(p.tp, p.tp + p.fp);
   return {
-    format: 'wind-tunnel-passport/1',
+    format: 'bruno-passport/1',
     chore: choreRef(i.projectKey, c.id), version: c.version, rule: c.sentence ?? c.id,
     verdict: c.verdict === 'proven' ? 'validated' : c.verdict,
     provenance: i.demo ? 'simulated demo history (not this site)' : "this site's own history",

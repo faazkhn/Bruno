@@ -53,8 +53,8 @@ export async function sendToAdmin(projectKey: string, choreId: string, confirm: 
     method: 'POST',
     body: { fields: { project: { key: targetProject }, issuetype: { name: 'Task' }, summary: `Automate: ${c.sentence}`.slice(0, 254), description: { type: 'doc', version: 1, content } } },
   });
-  await attachJson(issue.key, `wind-tunnel-${choreId.replace(/[^a-z0-9]+/gi, '-')}-v${c.version}.json`, rule).catch(() => null); // JSON is also in the description
-  await attachJson(issue.key, `wind-tunnel-passport-${choreId.replace(/[^a-z0-9]+/gi, '-')}-v${c.version}.json`, pp).catch(() => null); // passport is also in the description
+  await attachJson(issue.key, `bruno-${choreId.replace(/[^a-z0-9]+/gi, '-')}-v${c.version}.json`, rule).catch(() => null); // JSON is also in the description
+  await attachJson(issue.key, `bruno-passport-${choreId.replace(/[^a-z0-9]+/gi, '-')}-v${c.version}.json`, pp).catch(() => null); // passport is also in the description
   await db.addHandoff(projectKey, choreId, c.version, issue.key);
   await db.setChoreStatus(projectKey, choreId, 'handed_off');
   return { understood, created: true, key: issue.key };

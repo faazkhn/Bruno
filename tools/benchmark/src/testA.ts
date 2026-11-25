@@ -17,7 +17,7 @@ const START_AT = 500; // fixed offset so the slice is reproducible and not only 
 const FIELDS = 'project,created,summary,status,priority,resolution,issuetype,assignee,reporter,creator,labels,components,fixVersions';
 
 async function getJson(url: string) {
-  const r = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'wind-tunnel-benchmark' } });
+  const r = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'bruno-benchmark' } });
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return r.json() as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 }

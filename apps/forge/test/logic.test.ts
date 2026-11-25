@@ -106,7 +106,7 @@ describe('logic', () => {
     test('numbers equal the proof; provenance and dates are explicit', () => {
       const p = passport({ projectKey: 'WT', chore: base, demo: false, window: w, now: D + 31 * 86_400_000 });
       expect(p).toMatchObject({
-        format: 'wind-tunnel-passport/1', chore: 'WT/set:requestType:339', version: 1, verdict: 'validated',
+        format: 'bruno-passport/1', chore: 'WT/set:requestType:339', version: 1, verdict: 'validated',
         provenance: "this site's own history", learnedOn: { from: '2026-11-01', to: '2026-11-21' }, testedOn: { from: '2026-11-21', to: '2026-12-01' },
         holdout: { peopleDid: 100, ruleWouldAct: 33, agreed: 30, precision: '90.0%', precisionLikely: '76–97%', recall: '30.0%', coverage: '100.0%', inconclusive: 0 },
         exclusion: null, generatedAt: '2026-12-02',
